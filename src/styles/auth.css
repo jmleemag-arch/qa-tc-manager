@@ -1,0 +1,148 @@
+.login-page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: linear-gradient(135deg, #f7fbff 0%, #edf4fb 45%, #e8eef7 100%);
+  overflow: hidden;
+}
+
+.login-bg-shape {
+  position: absolute;
+  border-radius: 999px;
+  opacity: 0.45;
+  filter: blur(2px);
+}
+
+.shape-one {
+  width: 360px;
+  height: 360px;
+  top: -120px;
+  right: -80px;
+  background: #b9d6ff;
+}
+
+.shape-two {
+  width: 280px;
+  height: 280px;
+  bottom: -90px;
+  left: -80px;
+  background: #d8e7ff;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(214, 226, 240, 0.9);
+  box-shadow: 0 24px 70px rgba(30, 64, 112, 0.16);
+}
+
+.login-logo {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: #173b69;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.login-card h1 {
+  margin: 0;
+  color: #102a43;
+  font-size: 30px;
+}
+
+.login-desc {
+  margin: 10px 0 28px;
+  color: #64748b;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.login-form input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  outline: none;
+  font-size: 15px;
+  background: #ffffff;
+}
+
+.login-form input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.login-error {
+  margin: -4px 0 0;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.login-form button {
+  height: 48px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 12px;
+  background: #173b69;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.login-form button:hover {
+  background: #0f2d54;
+}
+
+.login-help {
+  margin-top: 22px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.login-help strong {
+  color: #1e293b;
+}
+
+@media (max-width: 768px) {
+  .login-card {
+    padding: 30px 24px;
+  }
+}
