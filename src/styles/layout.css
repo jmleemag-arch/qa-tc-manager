@@ -184,6 +184,17 @@
   overflow-x: hidden;
 }
 
+.app-placeholder-card,
+.placeholder-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  padding: 48px 24px;
+}
+
+.placeholder-card,
 .app-placeholder-card {
   display: flex;
   flex-direction: column;
@@ -196,15 +207,18 @@
   border-radius: 14px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
   text-align: center;
+  width: 100%;
 }
 
-.app-placeholder-card h2 {
+.app-placeholder-card h2,
+.placeholder-card h2 {
   margin: 0 0 12px;
   font-size: 24px;
   color: #0f172a;
 }
 
-.app-placeholder-card p {
+.app-placeholder-card p,
+.placeholder-card p {
   margin: 0;
   color: #64748b;
   font-size: 15px;
