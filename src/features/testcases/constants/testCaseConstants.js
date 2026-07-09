@@ -29,6 +29,26 @@ export const TC_MENUS = [
 
 export const SIDEBAR_MENUS = [TOTAL_MENU, ...TC_MENUS];
 
+export const VERSION_FILTER_ALL = "ALL";
+
+export const INITIAL_TEST_CASE_VERSIONS = [
+  {
+    id: "v1.0",
+    name: "v1.0",
+    description: "Initial login checks",
+  },
+  {
+    id: "v1.1",
+    name: "v1.1",
+    description: "Login exception checks",
+  },
+  {
+    id: "v1.2",
+    name: "v1.2",
+    description: "Session management checks",
+  },
+];
+
 export const EXCEL_DOWNLOAD_EMPTY_ALERT =
   "다운로드할 테스트 케이스가 없습니다.";
 

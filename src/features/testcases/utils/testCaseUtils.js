@@ -59,6 +59,7 @@ export function createEmptyTestCase(menu, uid) {
     checkResult: "",
     isWorking: "O",
     note: "",
+    versions: [],
   };
 }
 
@@ -76,6 +77,7 @@ export function updateTestCase(testCases, uid, formData) {
       checkResult: formData.checkResult.trim(),
       isWorking: formData.isWorking,
       note: formData.note.trim(),
+      versions: testCase.versions ?? [],
     };
   });
 }
@@ -105,8 +107,8 @@ export function deleteTestCases(testCases, uids) {
   return testCases.filter((testCase) => !uidSet.has(testCase.uid));
 }
 
-export function isAddableMenu(selectedMenu) {
-  return Boolean(selectedMenu && TC_MENUS.includes(selectedMenu));
+export function isAddableMenu(selectedMenu, addableMenus = TC_MENUS) {
+  return Boolean(selectedMenu && addableMenus.includes(selectedMenu));
 }
 
 export function createUid() {

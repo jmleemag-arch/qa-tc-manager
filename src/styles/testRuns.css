@@ -135,7 +135,7 @@
 
 .tr-issue-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(560px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -499,8 +499,8 @@
 
 .tr-issue-version {
   display: grid;
-  grid-template-columns: minmax(270px, 0.9fr) minmax(360px, 1.1fr);
-  gap: 20px;
+  grid-template-columns: minmax(360px, 0.95fr) minmax(520px, 1.45fr);
+  gap: 24px;
   margin-bottom: 18px;
 }
 

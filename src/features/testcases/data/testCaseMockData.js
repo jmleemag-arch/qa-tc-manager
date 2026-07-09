@@ -9,6 +9,7 @@ export const testCases = [
     checkResult: "관리도구 메인 화면으로 이동되는지 확인",
     isWorking: "O",
     note: "",
+    versions: ["v1.0", "v1.1"],
   },
   {
     uid: "tc-002",
@@ -20,6 +21,7 @@ export const testCases = [
     checkResult: "로그인 실패 메시지가 표시되는지 확인",
     isWorking: "O",
     note: "",
+    versions: ["v1.0"],
   },
   {
     uid: "tc-003",
@@ -31,6 +33,7 @@ export const testCases = [
     checkResult: "아이디 입력 안내 메시지가 표시되는지 확인",
     isWorking: "X",
     note: "유효성 메시지 문구 확인 필요",
+    versions: ["v1.0", "v1.1"],
   },
   {
     uid: "tc-004",
@@ -42,6 +45,7 @@ export const testCases = [
     checkResult: "비밀번호 입력 안내 메시지가 표시되는지 확인",
     isWorking: "O",
     note: "",
+    versions: ["v1.1"],
   },
   {
     uid: "tc-005",
@@ -53,6 +57,7 @@ export const testCases = [
     checkResult: "계정 잠금 안내 메시지가 표시되는지 확인",
     isWorking: "X",
     note: "잠금 계정 테스트 데이터 필요",
+    versions: ["v1.1"],
   },
   {
     uid: "tc-006",
@@ -64,6 +69,7 @@ export const testCases = [
     checkResult: "로그인 화면으로 이동되는지 확인",
     isWorking: "O",
     note: "",
+    versions: ["v1.0", "v1.2"],
   },
   {
     uid: "tc-007",
@@ -75,6 +81,7 @@ export const testCases = [
     checkResult: "로그인 상태가 유지되는지 확인",
     isWorking: "O",
     note: "",
+    versions: ["v1.2"],
   },
   {
     uid: "tc-008",
@@ -86,5 +93,6 @@ export const testCases = [
     checkResult: "로그인 화면으로 리다이렉트되는지 확인",
     isWorking: "X",
     note: "세션 만료 시간 설정 확인 필요",
+    versions: ["v1.2"],
   },
 ];
