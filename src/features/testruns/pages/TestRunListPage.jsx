@@ -280,6 +280,7 @@ function TestRunListPage({
         isOpen={isCreateModalOpen}
         allTestCases={allTestCases}
         existingRuns={testRuns}
+        issueVersions={issueVersions}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateTestRun}
       />

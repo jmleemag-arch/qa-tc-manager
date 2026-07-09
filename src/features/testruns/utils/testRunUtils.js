@@ -5,6 +5,7 @@ import {
   TARGET_MENU_REQUIRED_ALERT,
   TEST_CASE_REQUIRED_ALERT,
   TEST_RUN_STATUS,
+  VERSION_REQUIRED_ALERT,
 } from "../constants/testRunConstants";
 
 export function calculateProgress(completedCount, totalCount) {
@@ -186,7 +187,13 @@ export function formatRunCreatedAt(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function createTestRun({ runName, targetMenu, selectedTestCases, existingRuns }) {
+export function createTestRun({
+  runName,
+  targetMenu,
+  targetVersion,
+  selectedTestCases,
+  existingRuns,
+}) {
   const runTestCases = mapTestCasesToRunTestCases(selectedTestCases);
   const totalCount = runTestCases.length;
 
@@ -194,6 +201,7 @@ export function createTestRun({ runName, targetMenu, selectedTestCases, existing
     runId: generateRunId(existingRuns),
     runName: runName.trim(),
     targetMenu,
+    targetVersion,
     totalCount,
     completedCount: 0,
     passCount: 0,
@@ -206,9 +214,18 @@ export function createTestRun({ runName, targetMenu, selectedTestCases, existing
   };
 }
 
-export function validateTestRunCreateForm({ runName, targetMenu, selectedCount }) {
+export function validateTestRunCreateForm({
+  runName,
+  targetMenu,
+  targetVersion,
+  selectedCount,
+}) {
   if (!runName.trim()) {
     return RUN_NAME_REQUIRED_ALERT;
+  }
+
+  if (!targetVersion) {
+    return VERSION_REQUIRED_ALERT;
   }
 
   if (!targetMenu) {

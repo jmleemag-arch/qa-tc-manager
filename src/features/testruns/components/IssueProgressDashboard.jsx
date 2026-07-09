@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { VIEW_ALL_RUNS_ALERT } from "../constants/testRunConstants";
+import VersionYearVersionPicker from "./VersionYearVersionPicker";
+import {
+  getDefaultVersionForYear,
+  getDefaultYearLabel,
+  getVersionYearLabel,
+} from "../utils/issueVersionUtils";
 import { calculateProgress, getProgressTone, getStatusTone } from "../utils/testRunUtils";
 
 const EMPTY_WEEK_FORM = {
@@ -68,25 +74,6 @@ function getRateValue(total, newCount) {
 
 function getSortedRows(rows = []) {
   return [...rows].sort((a, b) => a.dateValue.localeCompare(b.dateValue));
-}
-
-function getVersionStatus(version) {
-  if (version.status) {
-    return version.status;
-  }
-
-  return version.rows.length > 0 ? "진행 중" : "예정";
-}
-
-function getVersionStatusTone(status) {
-  switch (status) {
-    case "완료":
-      return "completed";
-    case "진행 중":
-      return "in-progress";
-    default:
-      return "planned";
-  }
 }
 
 function getVersionSummary(version) {
@@ -184,82 +171,6 @@ function IssueLineChart({ chart }) {
         </text>
       ))}
     </svg>
-  );
-}
-
-function MiniIssueSparkline({ rows }) {
-  const chartRows = getSortedRows(rows);
-  const width = 220;
-  const height = 80;
-  const padding = 10;
-  const plotWidth = width - padding * 2;
-  const plotHeight = height - padding * 2;
-  const maxValue = Math.max(1, ...chartRows.map((row) => row.total));
-
-  if (chartRows.length === 0) {
-    return <div className="tr-version-empty-sparkline" />;
-  }
-
-  const points = chartRows
-    .map((row, index) => {
-      const x = padding + (plotWidth / Math.max(chartRows.length - 1, 1)) * index;
-      const y = padding + plotHeight - (row.total / maxValue) * plotHeight;
-
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const areaPoints = `${padding},${height - padding} ${points} ${width - padding},${height - padding}`;
-
-  return (
-    <svg className="tr-version-sparkline" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-      <polygon points={areaPoints} />
-      <polyline points={points} />
-      {chartRows.map((row, index) => {
-        const x = padding + (plotWidth / Math.max(chartRows.length - 1, 1)) * index;
-        const y = padding + plotHeight - (row.total / maxValue) * plotHeight;
-
-        return <circle key={row.id} cx={x} cy={y} r="3" />;
-      })}
-    </svg>
-  );
-}
-
-function VersionCard({ version, isSelected, onSelect }) {
-  const summary = getVersionSummary(version);
-  const status = getVersionStatus(version);
-  const statusTone = getVersionStatusTone(status);
-
-  return (
-    <button
-      type="button"
-      className={`tr-version-card ${isSelected ? "active" : ""}`}
-      onClick={() => onSelect(version.version)}
-    >
-      <div className="tr-version-card-top">
-        <strong>{version.version}</strong>
-        <span className={`tr-version-status tr-version-status-${statusTone}`}>
-          {status}
-        </span>
-      </div>
-      <dl className="tr-version-metrics">
-        <div>
-          <dt>기간</dt>
-          <dd>{summary.period}</dd>
-        </div>
-        <div>
-          <dt>전체 이슈</dt>
-          <dd>{summary.latestRow ? `${summary.total}건` : "-"}</dd>
-        </div>
-        <div>
-          <dt>완료율</dt>
-          <dd>{summary.latestRow ? summary.completionRate : "-"}</dd>
-        </div>
-      </dl>
-      <MiniIssueSparkline rows={version.rows} />
-      <span className="tr-version-updated">
-        마지막 업데이트 {summary.lastUpdated === "-" ? "-" : summary.lastUpdated}
-      </span>
-    </button>
   );
 }
 
@@ -851,8 +762,11 @@ function IssueProgressDashboard({
   focusedVersionName,
   onFocusedVersionHandled,
 }) {
+  const [selectedYear, setSelectedYear] = useState(() =>
+    getDefaultYearLabel(allVersions)
+  );
   const [selectedVersionName, setSelectedVersionName] = useState(
-    allVersions[0]?.version ?? ""
+    () => getDefaultVersionForYear(allVersions, getDefaultYearLabel(allVersions))
   );
   const [isAddVersionOpen, setIsAddVersionOpen] = useState(false);
   const selectedVersion =
@@ -867,9 +781,25 @@ function IssueProgressDashboard({
       return;
     }
 
+    setSelectedYear(getVersionYearLabel(focusedVersionName));
     setSelectedVersionName(focusedVersionName);
     onFocusedVersionHandled?.();
   }, [focusedVersionName, onFocusedVersionHandled]);
+
+  useEffect(() => {
+    if (
+      selectedVersionName &&
+      allVersions.some((version) => version.version === selectedVersionName)
+    ) {
+      return;
+    }
+
+    const nextVersion = getDefaultVersionForYear(allVersions, selectedYear);
+
+    if (nextVersion) {
+      setSelectedVersionName(nextVersion);
+    }
+  }, [allVersions, selectedVersionName, selectedYear]);
 
   return (
     <div className="tr-issue-dashboard">
@@ -878,7 +808,7 @@ function IssueProgressDashboard({
           <div className="tr-section-header tr-version-section-header">
             <div>
               <h3>이슈 진행 상황</h3>
-              <p>새로운 버전이 나올 때마다 추가하고, 버전을 클릭해 진행 현황을 확인합니다.</p>
+              <p>년도를 선택한 뒤 버전을 조회해 진행 현황을 확인합니다.</p>
             </div>
             <button
               type="button"
@@ -889,18 +819,15 @@ function IssueProgressDashboard({
             </button>
           </div>
           <div className="tr-version-list-header">
-            <h4>버전 목록</h4>
+            <h4>버전 조회</h4>
           </div>
-          <div className="tr-version-card-grid">
-            {versions.map((version) => (
-              <VersionCard
-                key={version.version}
-                version={version}
-                isSelected={version.version === selectedVersion?.version}
-                onSelect={setSelectedVersionName}
-              />
-            ))}
-          </div>
+          <VersionYearVersionPicker
+            versions={allVersions}
+            selectedYear={selectedYear}
+            selectedVersion={selectedVersionName}
+            onYearChange={setSelectedYear}
+            onVersionChange={setSelectedVersionName}
+          />
 
           {selectedVersion ? (
             <IssueProgressVersion

@@ -173,6 +173,15 @@ export const testRuns = [
 
 export const issueProgressVersions = [
   {
+    version: "26.1.0",
+    registeredAt: "2026.04.01",
+    status: "완료",
+    rows: [
+      { id: "26.1.0-2026-04-01", dateValue: "2026-04-01", total: 10, inProgress: 8, newCount: 6 },
+      { id: "26.1.0-2026-04-08", dateValue: "2026-04-08", total: 24, inProgress: 20, newCount: 12 },
+    ],
+  },
+  {
     version: "26.1.1",
     registeredAt: "2026.05.21",
     status: "완료",
@@ -207,6 +216,15 @@ export const issueProgressVersions = [
     startDate: "2026-08-01",
     endDate: "2026-10-31",
     description: "다음 릴리스 준비 버전",
+    rows: [],
+  },
+  {
+    version: "27.1.0",
+    registeredAt: "2027.01.15",
+    status: "예정",
+    startDate: "2027-01-15",
+    endDate: "2027-03-31",
+    description: "2027년 첫 릴리스",
     rows: [],
   },
 ];

@@ -63,6 +63,7 @@ export const TARGET_MENU_OPTIONS = [
 
 export const RUN_NAME_REQUIRED_ALERT = "런 이름을 입력해주세요.";
 export const TARGET_MENU_REQUIRED_ALERT = "대상 메뉴를 선택해주세요.";
+export const VERSION_REQUIRED_ALERT = "버전을 선택해주세요.";
 export const TEST_CASE_REQUIRED_ALERT = "테스트 케이스를 선택해주세요.";
 
 export const EXECUTION_RESULT_OPTIONS = ["O", "X", "BLOCK", "NT"];

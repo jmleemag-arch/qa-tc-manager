@@ -227,6 +227,100 @@
   font-size: 16px;
 }
 
+.tr-version-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.tr-version-picker-empty {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tr-version-picker-years {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.tr-version-picker-label {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tr-version-year-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tr-version-year-tab {
+  min-width: 72px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tr-version-year-tab:hover {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.tr-version-year-tab.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.tr-version-picker-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.tr-version-picker-select span {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tr-version-picker-select select {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tr-create-version-picker {
+  margin-bottom: 18px;
+  background: #ffffff;
+}
+
 .tr-version-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -3,6 +3,11 @@ import {
   TARGET_MENU_OPTIONS,
   TARGET_MENU_PLACEHOLDER,
 } from "../constants/testRunConstants";
+import VersionYearVersionPicker from "./VersionYearVersionPicker";
+import {
+  getDefaultVersionForYear,
+  getDefaultYearLabel,
+} from "../utils/issueVersionUtils";
 import {
   createTestRun,
   getTestCasesByMenu,
@@ -13,10 +18,17 @@ function TestRunCreateModal({
   isOpen,
   allTestCases,
   existingRuns,
+  issueVersions,
   onClose,
   onCreate,
 }) {
   const [runName, setRunName] = useState("");
+  const [selectedYear, setSelectedYear] = useState(() =>
+    getDefaultYearLabel(issueVersions)
+  );
+  const [targetVersion, setTargetVersion] = useState(() =>
+    getDefaultVersionForYear(issueVersions, getDefaultYearLabel(issueVersions))
+  );
   const [targetMenu, setTargetMenu] = useState("");
   const [selectedUids, setSelectedUids] = useState(new Set());
 
@@ -34,15 +46,33 @@ function TestRunCreateModal({
 
   useEffect(() => {
     if (isOpen) {
+      const defaultYear = getDefaultYearLabel(issueVersions);
       setRunName("");
+      setSelectedYear(defaultYear);
+      setTargetVersion(getDefaultVersionForYear(issueVersions, defaultYear));
       setTargetMenu("");
       setSelectedUids(new Set());
     }
-  }, [isOpen]);
+  }, [isOpen, issueVersions]);
 
   useEffect(() => {
     setSelectedUids(new Set());
   }, [targetMenu]);
+
+  useEffect(() => {
+    if (
+      targetVersion &&
+      issueVersions.some((version) => version.version === targetVersion)
+    ) {
+      return;
+    }
+
+    const nextVersion = getDefaultVersionForYear(issueVersions, selectedYear);
+
+    if (nextVersion) {
+      setTargetVersion(nextVersion);
+    }
+  }, [issueVersions, selectedYear, targetVersion]);
 
   if (!isOpen) {
     return null;
@@ -82,12 +112,18 @@ function TestRunCreateModal({
     });
   };
 
+  const handleYearChange = (year) => {
+    setSelectedYear(year);
+    setTargetVersion(getDefaultVersionForYear(issueVersions, year));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const validationError = validateTestRunCreateForm({
       runName,
       targetMenu,
+      targetVersion,
       selectedCount: selectedUids.size,
     });
 
@@ -103,6 +139,7 @@ function TestRunCreateModal({
     const newTestRun = createTestRun({
       runName,
       targetMenu,
+      targetVersion,
       selectedTestCases,
       existingRuns,
     });
@@ -121,7 +158,7 @@ function TestRunCreateModal({
         <div className="tr-create-modal-header">
           <div>
             <h2 id="tr-create-modal-title">테스트 런 생성</h2>
-            <p>기존 테스트 케이스를 선택해 실행 묶음을 만듭니다.</p>
+            <p>년도와 버전을 선택한 뒤 테스트 케이스를 묶어 실행합니다.</p>
           </div>
           <button
             type="button"
@@ -134,6 +171,15 @@ function TestRunCreateModal({
         </div>
 
         <form className="tr-create-modal-form" onSubmit={handleSubmit}>
+          <VersionYearVersionPicker
+            versions={issueVersions}
+            selectedYear={selectedYear}
+            selectedVersion={targetVersion}
+            onYearChange={handleYearChange}
+            onVersionChange={setTargetVersion}
+            className="tr-create-version-picker"
+          />
+
           <div className="tr-create-modal-fields">
             <label className="tr-create-field">
               <span>
@@ -143,7 +189,7 @@ function TestRunCreateModal({
                 type="text"
                 value={runName}
                 onChange={(e) => setRunName(e.target.value)}
-                placeholder="예: 접속페이지 정기 점검"
+                placeholder={`예: ${targetVersion || "26.1.0"} 대시보드 점검`}
               />
             </label>
 
