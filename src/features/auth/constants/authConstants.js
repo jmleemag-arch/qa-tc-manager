@@ -11,7 +11,12 @@ export const LOGIN_ERROR_MESSAGE =
   "아이디 또는 비밀번호가 올바르지 않습니다.";
 
 export const AUTH_SESSION_KEY = "qa-tc-manager-auth-session";
-export const AUTH_SESSION_DURATION_MS = 10 * 60 * 1000;
+export const AUTH_SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+export const AUTH_SESSION_WARNING_BEFORE_MS = 60 * 1000;
+export const AUTH_SESSION_ACTIVITY_EVENT = "qa-session-activity";
+
+/** @deprecated Use AUTH_SESSION_IDLE_TIMEOUT_MS */
+export const AUTH_SESSION_DURATION_MS = AUTH_SESSION_IDLE_TIMEOUT_MS;
 
 export function getUserDisplayName(userId) {
   return DEMO_USERS.find((user) => user.id === userId)?.name ?? userId;

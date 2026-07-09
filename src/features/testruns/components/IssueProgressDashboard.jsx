@@ -499,9 +499,6 @@ function IssueProgressVersion({
   allRows,
   onSave,
   onDelete,
-  onBack,
-  onRelease,
-  onRetest,
 }) {
   const chartRows = item.rows.map((row) => ({
     label: formatChartDate(row.dateValue),
@@ -513,26 +510,7 @@ function IssueProgressVersion({
   return (
     <article className="tr-version-detail-panel">
       <div className="tr-version-detail-header">
-        <button type="button" className="tr-version-back-btn" onClick={onBack}>
-          ← 버전 목록으로
-        </button>
         <h3>{item.version} 이슈 진행 상황</h3>
-        <div className="tr-version-detail-actions">
-          <button
-            type="button"
-            className="tr-version-outline-btn"
-            onClick={() => onRelease(item.version)}
-          >
-            릴리즈 전환
-          </button>
-          <button
-            type="button"
-            className="tr-version-danger-btn"
-            onClick={() => onRetest(item.version)}
-          >
-            재검증 요청
-          </button>
-        </div>
       </div>
 
       <VersionSummaryCards version={{ ...item, rows: allRows }} />
@@ -872,8 +850,6 @@ function IssueProgressDashboard({
   onCreateIssueVersion,
   focusedVersionName,
   onFocusedVersionHandled,
-  onVersionRelease,
-  onVersionRetest,
 }) {
   const [selectedVersionName, setSelectedVersionName] = useState(
     allVersions[0]?.version ?? ""
@@ -932,9 +908,6 @@ function IssueProgressDashboard({
               allRows={selectedAllVersion.rows ?? []}
               onSave={onSaveIssueWeek}
               onDelete={onDeleteIssueWeek}
-              onBack={() => setSelectedVersionName(versions[0]?.version ?? "")}
-              onRelease={onVersionRelease}
-              onRetest={onVersionRetest}
             />
           ) : null}
         </section>

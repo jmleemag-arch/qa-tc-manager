@@ -369,10 +369,9 @@
 }
 
 .tr-version-detail-header {
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) auto;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 16px;
   margin-bottom: 16px;
 }
 

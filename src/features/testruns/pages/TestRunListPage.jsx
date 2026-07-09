@@ -172,20 +172,6 @@ function TestRunListPage({
     setFocusedIssueVersion(newVersion.version);
   };
 
-  const handleVersionRelease = (versionName) => {
-    setIssueVersions((prev) =>
-      prev.map((version) =>
-        version.version === versionName
-          ? { ...version, status: "릴리즈" }
-          : version
-      )
-    );
-  };
-
-  const handleVersionRetest = (versionName) => {
-    setFocusedIssueVersion(versionName);
-  };
-
   return (
     <MainLayout
       loginUser={loginUser}
@@ -258,8 +244,6 @@ function TestRunListPage({
                 onCreateIssueVersion={handleCreateIssueVersion}
                 focusedVersionName={focusedIssueVersion}
                 onFocusedVersionHandled={() => setFocusedIssueVersion("")}
-                onVersionRelease={handleVersionRelease}
-                onVersionRetest={handleVersionRetest}
               />
             ) : (
               <>

@@ -9,10 +9,10 @@ function LoginPage({ onLogin }) {
       <div className="login-card">
         <div className="login-logo">QA</div>
 
-        <h1>QA TC Manager</h1>
+        <h1>QA Manager</h1>
 
         <p className="login-desc">
-          테스트 케이스를 관리하기 위한 내부 QA 관리도구입니다.
+          내부 QA 관리도구입니다.
         </p>
 
         <LoginForm onLogin={onLogin} />
