@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Version {
+  id          Int       @id @default(autoincrement())
+  versionName String    @unique @map("version_name")
+  year        Int
+  status      String
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  submenus  Submenu[]
+  testCases TestCase[]
+  testRuns  TestRun[]
+
+  @@map("versions")
+}
+
+model Submenu {
+  id        Int     @id @default(autoincrement())
+  versionId Int     @map("version_id")
+  name      String
+  isDefault Boolean @default(false) @map("is_default")
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  version Version @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, name])
+  @@map("submenus")
+}
+
+model TestCase {
+  id              Int      @id @default(autoincrement())
+  versionId       Int?     @map("version_id")
+  caseCode        String   @map("case_code")
+  menu            String
+  submenu         String?
+  checkItem       String   @map("check_item")
+  checkMethod     String?  @map("check_method")
+  expectedResult  String?  @map("expected_result")
+  actualResult    String?  @map("actual_result")
+  note            String?
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  version        Version?        @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  testRunItems   TestRunItem[]
+
+  @@unique([versionId, caseCode])
+  @@map("test_cases")
+}
+
+model TestRun {
+  id          Int       @id @default(autoincrement())
+  versionId   Int       @map("version_id")
+  runName     String    @map("run_name")
+  targetMenu  String?   @map("target_menu")
+  status      String
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  version Version       @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  items   TestRunItem[]
+
+  @@map("test_runs")
+}
+
+model TestRunItem {
+  id         Int       @id @default(autoincrement())
+  testRunId  Int       @map("test_run_id")
+  testCaseId Int       @map("test_case_id")
+  result     String?
+  executedAt DateTime? @map("executed_at")
+
+  testRun  TestRun  @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testCase TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([testRunId, testCaseId])
+  @@map("test_run_items")
+}
+
+model Issue {
+  id             Int      @id @default(autoincrement())
+  redmineIssueId String?  @map("redmine_issue_id")
+  title          String
+  menu           String?
+  severity       String?
+  assignee       String?
+  createdOn      DateTime @map("created_on")
+  weekStart      DateTime @map("week_start")
+  weekEnd        DateTime @map("week_end")
+
+  @@map("issues")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  userId    String   @unique @map("user_id")
+  name      String
+  role      String   @default("tester")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  type       String
+  message    String
+  targetType String?  @map("target_type")
+  targetId   Int?     @map("target_id")
+  isRead     Boolean  @default(false) @map("is_read")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}

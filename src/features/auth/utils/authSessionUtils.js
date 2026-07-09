@@ -1,7 +1,9 @@
 import {
-  AUTH_SESSION_IDLE_TIMEOUT_MS,
-  AUTH_SESSION_KEY,
+  getSessionIdleTimeoutMs,
+} from "../../settings/utils/settingsStorage";
+import {
   AUTH_SESSION_ACTIVITY_EVENT,
+  AUTH_SESSION_KEY,
 } from "../constants/authConstants";
 
 export function getStoredAuthSession() {
@@ -37,7 +39,7 @@ export function clearAuthSession() {
 export function createAuthSession(userId) {
   const session = {
     userId,
-    expiresAt: Date.now() + AUTH_SESSION_IDLE_TIMEOUT_MS,
+    expiresAt: Date.now() + getSessionIdleTimeoutMs(),
     lastActivityAt: Date.now(),
   };
 
@@ -49,7 +51,7 @@ export function createAuthSession(userId) {
 export function extendAuthSession(session) {
   const nextSession = {
     ...session,
-    expiresAt: Date.now() + AUTH_SESSION_IDLE_TIMEOUT_MS,
+    expiresAt: Date.now() + getSessionIdleTimeoutMs(),
     lastActivityAt: Date.now(),
   };
 

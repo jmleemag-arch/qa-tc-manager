@@ -13,6 +13,10 @@ async function request(endpoint, options = {}) {
     throw new Error(`API request failed: ${response.status}`);
   }
 
+  if (response.status === 204) {
+    return null;
+  }
+
   return response.json();
 }
 
@@ -20,6 +24,7 @@ export const apiClient = {
   get: (endpoint) => request(endpoint),
   post: (endpoint, body) =>
     request(endpoint, { method: "POST", body: JSON.stringify(body) }),
+  request,
 };
 
 export default apiClient;

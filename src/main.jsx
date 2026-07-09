@@ -8,6 +8,7 @@ import "./styles/testcases.css";
 import "./styles/testRuns.css";
 import "./styles/dashboard.css";
 import "./styles/defects.css";
+import "./styles/settings.css";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

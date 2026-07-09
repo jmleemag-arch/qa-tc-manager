@@ -4,14 +4,10 @@ import IssueProgressDashboard from "../components/IssueProgressDashboard";
 import NewRegisteredIssuesSection from "../components/NewRegisteredIssuesSection";
 import {
   issueMenuDistribution,
-  issueProgressVersions,
   issueSeverityDistribution,
   recentIssues,
 } from "../data/defectMockData";
-import {
-  readIssueVersions,
-  writeIssueVersions,
-} from "../utils/issueVersionStorage";
+import { useVersions } from "../../../hooks/useVersions";
 
 function DefectListPage({
   loginUser,
@@ -25,14 +21,27 @@ function DefectListPage({
   routeParams = {},
   onRouteChange,
 }) {
+  const {
+    issueVersions: apiIssueVersions,
+    loading: versionsLoading,
+    createVersion,
+    deleteVersionByName,
+  } = useVersions();
   const [issueStartDate, setIssueStartDate] = useState("2026-05-21");
   const [issueEndDate, setIssueEndDate] = useState("2026-07-30");
-  const [issueVersions, setIssueVersions] = useState(() =>
-    readIssueVersions(issueProgressVersions)
-  );
+  const [localRowsByVersion, setLocalRowsByVersion] = useState({});
   const [focusedIssueVersion, setFocusedIssueVersion] = useState("");
   const activeView =
     routeParams.view === "new-issues" ? "new-issues" : "overview";
+
+  const issueVersions = useMemo(
+    () =>
+      apiIssueVersions.map((version) => ({
+        ...version,
+        rows: localRowsByVersion[version.version] ?? version.rows ?? [],
+      })),
+    [apiIssueVersions, localRowsByVersion]
+  );
 
   const filteredIssueVersions = useMemo(
     () =>
@@ -48,59 +57,53 @@ function DefectListPage({
     [issueVersions, issueStartDate, issueEndDate]
   );
 
-  useEffect(() => {
-    writeIssueVersions(issueVersions);
-  }, [issueVersions]);
-
   const handleViewChange = (view) => {
     onRouteChange?.({ view: view === "overview" ? null : view });
   };
 
   const handleSaveIssueWeek = (versionName, weekData) => {
-    setIssueVersions((prev) =>
-      prev.map((version) => {
-        if (version.version !== versionName) {
-          return version;
-        }
+    setLocalRowsByVersion((prev) => {
+      const currentRows = prev[versionName] ?? [];
+      const rows = currentRows.some((row) => row.id === weekData.id)
+        ? currentRows.map((row) => (row.id === weekData.id ? weekData : row))
+        : [...currentRows, weekData];
 
-        const rows = version.rows.some((row) => row.id === weekData.id)
-          ? version.rows.map((row) => (row.id === weekData.id ? weekData : row))
-          : [...version.rows, weekData];
-
-        return {
-          ...version,
-          rows: [...rows].sort((a, b) => a.dateValue.localeCompare(b.dateValue)),
-        };
-      })
-    );
+      return {
+        ...prev,
+        [versionName]: [...rows].sort((a, b) =>
+          a.dateValue.localeCompare(b.dateValue)
+        ),
+      };
+    });
   };
 
   const handleDeleteIssueWeek = (versionName, rowId) => {
-    setIssueVersions((prev) =>
-      prev.map((version) => {
-        if (version.version !== versionName) {
-          return version;
-        }
-
-        return {
-          ...version,
-          rows: version.rows.filter((row) => row.id !== rowId),
-        };
-      })
-    );
+    setLocalRowsByVersion((prev) => ({
+      ...prev,
+      [versionName]: (prev[versionName] ?? []).filter((row) => row.id !== rowId),
+    }));
   };
 
-  const handleCreateIssueVersion = (newVersion) => {
-    setIssueVersions((prev) =>
-      [...prev, newVersion].sort((a, b) => a.version.localeCompare(b.version))
-    );
-    setFocusedIssueVersion(newVersion.version);
+  const handleCreateIssueVersion = async (newVersion) => {
+    try {
+      await createVersion(newVersion);
+      setFocusedIssueVersion(newVersion.version);
+    } catch {
+      window.alert("버전을 저장하지 못했습니다.");
+    }
   };
 
-  const handleDeleteIssueVersion = (versionName) => {
-    setIssueVersions((prev) =>
-      prev.filter((version) => version.version !== versionName)
-    );
+  const handleDeleteIssueVersion = async (versionName) => {
+    try {
+      await deleteVersionByName(versionName);
+      setLocalRowsByVersion((prev) => {
+        const next = { ...prev };
+        delete next[versionName];
+        return next;
+      });
+    } catch {
+      window.alert("버전을 삭제하지 못했습니다.");
+    }
   };
 
   return (
@@ -154,6 +157,8 @@ function DefectListPage({
 
         {activeView === "new-issues" ? (
           <NewRegisteredIssuesSection />
+        ) : versionsLoading ? (
+          <p className="df-page-description">버전 정보를 불러오는 중입니다...</p>
         ) : (
           <IssueProgressDashboard
             versions={filteredIssueVersions}

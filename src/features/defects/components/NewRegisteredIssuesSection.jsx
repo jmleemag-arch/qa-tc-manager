@@ -2,60 +2,54 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ASSIGNEE_FILTER_ALL,
   NEW_ISSUE_PAGE_SIZE_OPTIONS,
-  REDMINE_SETTINGS_ALERT,
 } from "../constants/defectConstants";
-import { newRegisteredIssues } from "../data/newIssueMockData";
-import {
-  filterNewIssues,
-  getAssigneeOptions,
-  getDefaultWeekAnchor,
-  getWeekRange,
-  getWeeksWithData,
-  paginateItems,
-} from "../utils/newIssueUtils";
+import { useNewIssues } from "../../../hooks/useNewIssues";
 import NewIssueTable from "./NewIssueTable";
 import NewIssueToolbar from "./NewIssueToolbar";
 import WeekSelector from "./WeekSelector";
 
 function NewRegisteredIssuesSection() {
-  const weeksWithData = useMemo(
-    () => getWeeksWithData(newRegisteredIssues),
-    []
-  );
-  const [weekAnchorDate, setWeekAnchorDate] = useState(() =>
-    getDefaultWeekAnchor(newRegisteredIssues)
-  );
+  const [weekAnchorDate, setWeekAnchorDate] = useState("");
   const [searchText, setSearchText] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState(ASSIGNEE_FILTER_ALL);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(NEW_ISSUE_PAGE_SIZE_OPTIONS[0]);
 
-  const weekRange = useMemo(
-    () => getWeekRange(weekAnchorDate),
-    [weekAnchorDate]
-  );
-  const assigneeOptions = useMemo(
-    () => getAssigneeOptions(newRegisteredIssues),
-    []
-  );
-  const filteredIssues = useMemo(
-    () =>
-      filterNewIssues(newRegisteredIssues, {
-        startDate: weekRange.startDate,
-        endDate: weekRange.endDate,
-        searchText,
-        assigneeFilter,
-      }),
-    [weekRange, searchText, assigneeFilter]
-  );
-  const pagination = useMemo(
-    () => paginateItems(filteredIssues, page, pageSize),
-    [filteredIssues, page, pageSize]
-  );
+  const {
+    issues,
+    weeksWithData,
+    assigneeOptions,
+    pagination,
+    loading,
+    error,
+    defaultWeekAnchor,
+  } = useNewIssues({
+    weekAnchorDate,
+    searchText,
+    assigneeFilter,
+    page,
+    pageSize,
+  });
+
+  useEffect(() => {
+    if (!weekAnchorDate && defaultWeekAnchor) {
+      setWeekAnchorDate(defaultWeekAnchor);
+    }
+  }, [defaultWeekAnchor, weekAnchorDate]);
 
   useEffect(() => {
     setPage(1);
   }, [weekAnchorDate, searchText, assigneeFilter, pageSize]);
+
+  const weekIssues = useMemo(
+    () => weeksWithData.map((weekStart) => ({ registeredAt: weekStart })),
+    [weeksWithData]
+  );
+
+  const toolbarAssigneeOptions = useMemo(
+    () => [ASSIGNEE_FILTER_ALL, ...assigneeOptions],
+    [assigneeOptions]
+  );
 
   const pageNumbers = useMemo(() => {
     const numbers = [];
@@ -77,42 +71,45 @@ function NewRegisteredIssuesSection() {
             주차별로 등록된 신규 이슈 목록을 확인할 수 있습니다.
           </p>
         </div>
-        <button
-          type="button"
-          className="df-redmine-btn"
-          onClick={() => alert(REDMINE_SETTINGS_ALERT)}
-        >
-          ⚙ Redmine 연동 설정
-        </button>
       </div>
 
-      <WeekSelector
-        weekAnchorDate={weekAnchorDate}
-        weeksWithData={weeksWithData}
-        issues={newRegisteredIssues}
-        onWeekChange={setWeekAnchorDate}
-      />
+      {weekAnchorDate ? (
+        <WeekSelector
+          weekAnchorDate={weekAnchorDate}
+          weeksWithData={weeksWithData}
+          issues={weekIssues}
+          onWeekChange={setWeekAnchorDate}
+        />
+      ) : null}
 
       <div className="df-issue-list-card">
+        {error ? (
+          <p className="df-page-description">이슈 목록을 불러오지 못했습니다.</p>
+        ) : null}
+
         <NewIssueToolbar
           searchText={searchText}
           assigneeFilter={assigneeFilter}
-          assigneeOptions={assigneeOptions}
+          assigneeOptions={toolbarAssigneeOptions}
           onSearchChange={setSearchText}
           onAssigneeFilterChange={setAssigneeFilter}
         />
 
-        <NewIssueTable
-          issues={pagination.items}
-          pageOffset={(pagination.currentPage - 1) * pageSize}
-        />
+        {loading ? (
+          <p className="df-page-description">이슈 목록을 불러오는 중입니다...</p>
+        ) : (
+          <NewIssueTable
+            issues={issues}
+            pageOffset={(pagination.page - 1) * pageSize}
+          />
+        )}
 
         <div className="df-pagination-bar">
           <div className="df-pagination">
             <button
               type="button"
               className="df-page-btn"
-              disabled={pagination.currentPage <= 1}
+              disabled={pagination.page <= 1}
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               aria-label="이전 페이지"
             >
@@ -123,7 +120,7 @@ function NewRegisteredIssuesSection() {
                 key={pageNumber}
                 type="button"
                 className={
-                  pageNumber === pagination.currentPage
+                  pageNumber === pagination.page
                     ? "df-page-btn active"
                     : "df-page-btn"
                 }
@@ -135,7 +132,7 @@ function NewRegisteredIssuesSection() {
             <button
               type="button"
               className="df-page-btn"
-              disabled={pagination.currentPage >= pagination.totalPages}
+              disabled={pagination.page >= pagination.totalPages}
               onClick={() =>
                 setPage((prev) => Math.min(prev + 1, pagination.totalPages))
               }

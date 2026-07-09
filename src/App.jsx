@@ -3,16 +3,19 @@ import LoginPage from "./features/auth/pages/LoginPage";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import DashboardPage from "./features/dashboard/pages/DashboardPage";
 import DefectListPage from "./features/defects/pages/DefectListPage";
+import SettingsPage from "./features/settings/pages/SettingsPage";
 import TestCaseListPage from "./features/testcases/pages/TestCaseListPage";
 import TestRunListPage from "./features/testruns/pages/TestRunListPage";
 import SessionExpiryModal from "./features/auth/components/SessionExpiryModal";
 import { useIdleSession } from "./features/auth/hooks/useIdleSession";
+import { loadAppSettings } from "./features/settings/utils/settingsStorage";
 import { APP_SIDEBAR_MENUS, PAGE_TITLES } from "./constants/appConstants";
 
 const ACTIVE_MENU_DASHBOARD = APP_SIDEBAR_MENUS[0];
 const ACTIVE_MENU_TEST_CASES = APP_SIDEBAR_MENUS[1];
 const ACTIVE_MENU_TEST_RUNS = APP_SIDEBAR_MENUS[2];
 const ACTIVE_MENU_DEFECTS = APP_SIDEBAR_MENUS[3];
+const ACTIVE_MENU_SETTINGS = APP_SIDEBAR_MENUS[5];
 const ACTIVE_MENU_STORAGE_KEY = "qa-manager-active-menu";
 
 const MENU_SLUGS = [
@@ -91,6 +94,10 @@ function App() {
   } = useIdleSession();
   const [routeState, setRouteState] = useState(getInitialRoute);
   const { activeMenu, routeParams } = routeState;
+
+  useEffect(() => {
+    loadAppSettings();
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -190,6 +197,8 @@ function App() {
     pageContent = <TestRunListPage {...pageProps} />;
   } else if (activeMenu === ACTIVE_MENU_DEFECTS) {
     pageContent = <DefectListPage {...pageProps} />;
+  } else if (activeMenu === ACTIVE_MENU_SETTINGS) {
+    pageContent = <SettingsPage {...pageProps} />;
   } else {
     pageContent = <PlaceholderPage {...pageProps} />;
   }

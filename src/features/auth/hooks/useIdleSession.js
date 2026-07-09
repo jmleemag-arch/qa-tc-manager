@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AUTH_SESSION_ACTIVITY_EVENT } from "../constants/authConstants";
 import {
-  AUTH_SESSION_ACTIVITY_EVENT,
-  AUTH_SESSION_WARNING_BEFORE_MS,
-} from "../constants/authConstants";
+  getSessionWarningBeforeMs,
+  isSessionWarningEnabled,
+  loadSessionSettings,
+} from "../../settings/utils/settingsStorage";
+import { SETTINGS_SAVED_EVENT } from "../../settings/constants/settingsConstants";
 import {
   clearAuthSession,
   createAuthSession,
@@ -65,10 +68,16 @@ export function useIdleSession() {
   }, []);
 
   const login = useCallback((userId) => {
-    const session = createAuthSession(userId);
-    setAuthSession(session);
-    setShowExpiryWarning(false);
-    lastExtendAtRef.current = Date.now();
+    loadSessionSettings().finally(() => {
+      const session = createAuthSession(userId);
+      setAuthSession(session);
+      setShowExpiryWarning(false);
+      lastExtendAtRef.current = Date.now();
+    });
+  }, []);
+
+  useEffect(() => {
+    loadSessionSettings();
   }, []);
 
   useEffect(() => {
@@ -97,6 +106,7 @@ export function useIdleSession() {
     });
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
     window.addEventListener(AUTH_SESSION_ACTIVITY_EVENT, handleActivity);
+    window.addEventListener(SETTINGS_SAVED_EVENT, handleActivity);
 
     const intervalId = window.setInterval(() => {
       const currentSession = getStoredAuthSession();
@@ -113,7 +123,10 @@ export function useIdleSession() {
         return;
       }
 
-      setShowExpiryWarning(remainingMs <= AUTH_SESSION_WARNING_BEFORE_MS);
+      setShowExpiryWarning(
+        isSessionWarningEnabled() &&
+          remainingMs <= getSessionWarningBeforeMs()
+      );
       setAuthSession((prev) => {
         if (
           !prev ||
@@ -133,6 +146,7 @@ export function useIdleSession() {
       });
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener(AUTH_SESSION_ACTIVITY_EVENT, handleActivity);
+      window.removeEventListener(SETTINGS_SAVED_EVENT, handleActivity);
       window.clearInterval(intervalId);
     };
   }, [authSession, logout, recordActivity]);

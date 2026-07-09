@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
-import { issueProgressVersions } from "../../defects/data/defectMockData";
-import { readIssueVersions } from "../../defects/utils/issueVersionStorage";
+import { useVersions } from "../../../hooks/useVersions";
 import TestRunCreateModal from "../components/TestRunCreateModal";
 import TestRunStatusChart from "../components/TestRunStatusChart";
 import TestRunSummaryCards from "../components/TestRunSummaryCards";
@@ -42,9 +41,7 @@ function TestRunListPage({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchText, setSearchText] = useState("");
-  const [issueVersions, setIssueVersions] = useState(() =>
-    readIssueVersions(issueProgressVersions)
-  );
+  const { issueVersions, loading: versionsLoading } = useVersions();
   const selectedRunId = routeParams.runId ?? null;
 
   const selectedTestRun = useMemo(
@@ -68,12 +65,6 @@ function TestRunListPage({
     () => getStatusDistribution(testRuns),
     [testRuns]
   );
-
-  useEffect(() => {
-    if (isCreateModalOpen) {
-      setIssueVersions(readIssueVersions(issueProgressVersions));
-    }
-  }, [isCreateModalOpen]);
 
   const handleCreateTestRun = (newTestRun) => {
     setTestRuns((prev) => [...prev, newTestRun]);
@@ -172,6 +163,7 @@ function TestRunListPage({
         allTestCases={allTestCases}
         existingRuns={testRuns}
         issueVersions={issueVersions}
+        versionsLoading={versionsLoading}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateTestRun}
       />
