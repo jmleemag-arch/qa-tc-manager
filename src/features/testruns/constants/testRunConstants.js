@@ -78,9 +78,9 @@ export const COMING_SOON_ALERT = "해당 메뉴는 추후 구현 예정입니다
 
 export const SUMMARY_CARD_CONFIG = [
   { key: "totalRuns", label: "전체 테스트 런", tone: "blue", subKey: "totalRunsSub" },
-  { key: "failed", label: "실패", tone: "red" },
   { key: "completed", label: "완료", tone: "green" },
   { key: "inProgress", label: "진행 중", tone: "purple" },
+  { key: "failed", label: "실패", tone: "red" },
   { key: "waiting", label: "대기", tone: "gray" },
   { key: "latestRunDate", label: "최근 실행", tone: "sky", subKey: "latestRunTime" },
 ];

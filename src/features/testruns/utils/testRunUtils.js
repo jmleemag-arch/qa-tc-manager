@@ -88,20 +88,31 @@ export function filterTestRuns(
 export function getSummaryStats(testRuns = []) {
   const runs = Array.isArray(testRuns) ? testRuns : [];
   const latestRun = getRecentTestRuns(runs, 1)[0];
+  const totalRuns = runs.length;
+  const completed = runs.filter(
+    (run) => run.status === TEST_RUN_STATUS.COMPLETED
+  ).length;
+  const inProgress = runs.filter(
+    (run) => run.status === TEST_RUN_STATUS.IN_PROGRESS
+  ).length;
+  const failed = runs.filter((run) => run.status === TEST_RUN_STATUS.FAILED)
+    .length;
+  const waiting = runs.filter((run) => run.status === TEST_RUN_STATUS.WAITING)
+    .length;
+  const formatPercent = (count) =>
+    totalRuns ? `${((count / totalRuns) * 100).toFixed(1)}%` : "0%";
 
   return {
-    totalRuns: runs.length,
+    totalRuns,
     totalRunsSub: "▲ 3 이번 주",
-    inProgress: runs.filter(
-      (run) => run.status === TEST_RUN_STATUS.IN_PROGRESS
-    ).length,
-    completed: runs.filter(
-      (run) => run.status === TEST_RUN_STATUS.COMPLETED
-    ).length,
-    failed: runs.filter((run) => run.status === TEST_RUN_STATUS.FAILED)
-      .length,
-    waiting: runs.filter((run) => run.status === TEST_RUN_STATUS.WAITING)
-      .length,
+    inProgress,
+    inProgressSub: formatPercent(inProgress),
+    completed,
+    completedSub: formatPercent(completed),
+    failed,
+    failedSub: formatPercent(failed),
+    waiting,
+    waitingSub: formatPercent(waiting),
     totalTcCount: runs.reduce((sum, run) => sum + (run.totalCount ?? 0), 0),
     latestRunDate: latestRun ? parseCreatedDate(latestRun.createdAt) : "-",
     latestRunTime: latestRun ? latestRun.createdAt.split(" ")[1] ?? "" : "",

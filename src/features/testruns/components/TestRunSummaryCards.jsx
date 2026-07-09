@@ -1,12 +1,12 @@
 import { SUMMARY_CARD_CONFIG } from "../constants/testRunConstants";
 
 const SUMMARY_ICONS = {
-  totalRuns: "▦",
-  inProgress: "◷",
+  totalRuns: "☰",
   completed: "✓",
+  inProgress: "◉",
   failed: "✕",
-  waiting: "⏸",
-  totalTcCount: "☰",
+  waiting: "-",
+  latestRunDate: "▣",
 };
 
 function TestRunSummaryCards({ summaryStats }) {
@@ -22,6 +22,11 @@ function TestRunSummaryCards({ summaryStats }) {
             <strong className="tr-summary-value">
               {(summaryStats[card.key] ?? 0).toLocaleString()}
             </strong>
+            {card.subKey ? (
+              <span className="tr-summary-sub">
+                {summaryStats[card.subKey] ?? ""}
+              </span>
+            ) : null}
           </div>
         </article>
       ))}
