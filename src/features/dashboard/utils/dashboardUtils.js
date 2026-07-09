@@ -1,4 +1,4 @@
-import { MENU_FILTER_ALL, TEST_RUN_STATUS } from "../constants/dashboardConstants";
+import { TEST_RUN_STATUS } from "../constants/dashboardConstants";
 
 export function buildDonutGradient(segments) {
   const activeSegments = segments.filter((segment) => segment.count > 0);
@@ -43,30 +43,4 @@ export function getProgressTone(progress) {
   }
 
   return "idle";
-}
-
-export function filterMenuTestCaseCounts(menuTestCaseCounts, menuFilter) {
-  if (menuFilter === MENU_FILTER_ALL) {
-    return menuTestCaseCounts;
-  }
-
-  return menuTestCaseCounts.filter((item) => item.menu === menuFilter);
-}
-
-export function getMaxMenuCount(menuTestCaseCounts) {
-  if (menuTestCaseCounts.length === 0) {
-    return 0;
-  }
-
-  return Math.max(...menuTestCaseCounts.map((item) => item.count));
-}
-
-export function getTrendMaxValue(defectTrend) {
-  const values = defectTrend.flatMap((week) => [
-    week.registered,
-    week.resolved,
-    week.remaining,
-  ]);
-
-  return Math.max(...values, 1);
 }

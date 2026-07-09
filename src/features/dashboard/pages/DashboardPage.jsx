@@ -1,16 +1,8 @@
 import MainLayout from "../../../components/layout/MainLayout";
 import DashboardSummaryCards from "../components/DashboardSummaryCards";
-import DefectStatusCard from "../components/DefectStatusCard";
-import DefectTrendCard from "../components/DefectTrendCard";
-import MenuTestCaseChart from "../components/MenuTestCaseChart";
-import RecentTestCaseCard from "../components/RecentTestCaseCard";
 import RecentTestRunCard from "../components/RecentTestRunCard";
 import TestRunStatusCard from "../components/TestRunStatusCard";
 import {
-  defectStatus,
-  defectTrend,
-  menuTestCaseCounts,
-  recentTestCases,
   recentTestRuns,
   summaryCards,
   testRunStatus,
@@ -50,14 +42,6 @@ function DashboardPage({
           onMoveToTestRuns={handleMoveToTestRuns}
         />
       </div>
-
-      <div className="db-bottom-grid">
-        <MenuTestCaseChart menuTestCaseCounts={menuTestCaseCounts} />
-        <RecentTestCaseCard recentTestCases={recentTestCases} />
-        <DefectStatusCard defectStatus={defectStatus} />
-      </div>
-
-      <DefectTrendCard defectTrend={defectTrend} />
     </MainLayout>
   );
 }
