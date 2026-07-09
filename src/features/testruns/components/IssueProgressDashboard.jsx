@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { VIEW_ALL_RUNS_ALERT } from "../constants/testRunConstants";
+import { DELETE_ISSUE_VERSION_CONFIRM, VIEW_ALL_RUNS_ALERT } from "../constants/testRunConstants";
 import VersionYearVersionPicker from "./VersionYearVersionPicker";
 import {
   getDefaultVersionForYear,
@@ -759,6 +759,7 @@ function IssueProgressDashboard({
   onSaveIssueWeek,
   onDeleteIssueWeek,
   onCreateIssueVersion,
+  onDeleteIssueVersion,
   focusedVersionName,
   onFocusedVersionHandled,
 }) {
@@ -798,8 +799,33 @@ function IssueProgressDashboard({
 
     if (nextVersion) {
       setSelectedVersionName(nextVersion);
+      return;
     }
+
+    const defaultYear = getDefaultYearLabel(allVersions);
+
+    if (defaultYear) {
+      setSelectedYear(defaultYear);
+      setSelectedVersionName(getDefaultVersionForYear(allVersions, defaultYear));
+      return;
+    }
+
+    setSelectedVersionName("");
   }, [allVersions, selectedVersionName, selectedYear]);
+
+  const handleDeleteVersionClick = () => {
+    if (!selectedVersionName) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `${selectedVersionName} ${DELETE_ISSUE_VERSION_CONFIRM}`
+    );
+
+    if (confirmed) {
+      onDeleteIssueVersion?.(selectedVersionName);
+    }
+  };
 
   return (
     <div className="tr-issue-dashboard">
@@ -820,6 +846,15 @@ function IssueProgressDashboard({
           </div>
           <div className="tr-version-list-header">
             <h4>버전 조회</h4>
+            {selectedVersionName ? (
+              <button
+                type="button"
+                className="tr-version-danger-btn"
+                onClick={handleDeleteVersionClick}
+              >
+                버전 삭제
+              </button>
+            ) : null}
           </div>
           <VersionYearVersionPicker
             versions={allVersions}

@@ -70,6 +70,8 @@ export const EXECUTION_RESULT_OPTIONS = ["O", "X", "BLOCK", "NT"];
 
 export const DELETE_TEST_RUN_CONFIRM =
   "선택한 테스트 런을 삭제하시겠습니까?";
+export const DELETE_ISSUE_VERSION_CONFIRM =
+  "버전을 삭제하시겠습니까? 등록된 주차 데이터도 함께 삭제됩니다.";
 export const EXCEL_DOWNLOAD_EMPTY_ALERT = "다운로드할 테스트 런이 없습니다.";
 
 export const CREATE_RUN_ALERT = "테스트 런 생성 기능은 추후 구현 예정입니다.";

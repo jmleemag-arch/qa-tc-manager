@@ -182,6 +182,12 @@ function TestRunListPage({
     setFocusedIssueVersion(newVersion.version);
   };
 
+  const handleDeleteIssueVersion = (versionName) => {
+    setIssueVersions((prev) =>
+      prev.filter((version) => version.version !== versionName)
+    );
+  };
+
   return (
     <MainLayout
       loginUser={loginUser}
@@ -252,6 +258,7 @@ function TestRunListPage({
                 onSaveIssueWeek={handleSaveIssueWeek}
                 onDeleteIssueWeek={handleDeleteIssueWeek}
                 onCreateIssueVersion={handleCreateIssueVersion}
+                onDeleteIssueVersion={handleDeleteIssueVersion}
                 focusedVersionName={focusedIssueVersion}
                 onFocusedVersionHandled={() => setFocusedIssueVersion("")}
               />
