@@ -5,40 +5,35 @@ import TestCaseToolbar from "../components/TestCaseToolbar";
 import TestCaseTable from "../components/TestCaseTable";
 import TestCaseEditModal from "../components/TestCaseEditModal";
 import TestCaseVersionManager from "../components/TestCaseVersionManager";
-import SubMenuManagerModal from "../components/SubMenuManagerModal";
 import { testCases as initialTestCases } from "../data/testCaseMockData";
 import {
   DELETE_SELECT_ALERT,
   EXCEL_DOWNLOAD_EMPTY_ALERT,
+  FIXED_VERSION_MENUS,
   INITIAL_TEST_CASE_VERSIONS,
   IS_WORKING_FILTER_ALL,
   MENU_SELECT_ALERT,
   SIDEBAR_MENUS,
-  TC_ASSIGNEE_OPTIONS,
   TC_MENUS,
   TOTAL_MENU,
-  VERSION_FILTER_ALL,
 } from "../constants/testCaseConstants";
-import {
-  createNotification,
-  getUserDisplayName,
-  resolveMentionedUsers,
-} from "../../notifications/notificationUtils";
 import { downloadTestCasesExcel } from "../utils/excelUtils";
 import {
   assignDisplayIds,
   createEmptyTestCase,
   createUid,
   deleteTestCases,
+  ensureVersionMenus,
   filterTestCases,
   isAddableMenu,
+  isFixedVersionMenu,
   reorderTestCases,
   updateTestCase,
 } from "../utils/testCaseUtils";
 
 const TEST_CASE_STORAGE_KEY = "qa-manager-test-cases";
 const TEST_CASE_VERSION_STORAGE_KEY = "qa-manager-test-case-versions";
-const TEST_CASE_CUSTOM_MENU_STORAGE_KEY = "qa-manager-test-case-custom-menus";
+const TEST_CASE_CUSTOM_MENU_POOL_KEY = "qa-manager-test-case-custom-menu-pool";
 
 function createCustomMenuId() {
   return `menu-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -53,6 +48,24 @@ function readStorageValue(key, fallbackValue) {
   }
 }
 
+function normalizeVersions(storedVersions) {
+  return storedVersions.map((version) => ({
+    ...version,
+    menus: ensureVersionMenus(version.menus ?? [...FIXED_VERSION_MENUS]),
+  }));
+}
+
+function normalizeTestCases(storedTestCases) {
+  return storedTestCases.map((testCase) => ({
+    ...testCase,
+    versionId:
+      testCase.versionId ??
+      (Array.isArray(testCase.versions) && testCase.versions.length > 0
+        ? testCase.versions[0]
+        : null),
+  }));
+}
+
 function TestCaseListPage({
   loginUser,
   onLogout,
@@ -61,20 +74,20 @@ function TestCaseListPage({
   notifications,
   onNotificationClick,
   onMarkAllNotificationsRead,
-  notificationTarget,
-  onNotificationTargetHandled,
-  onAddNotifications,
 }) {
   const [testCases, setTestCases] = useState(() =>
-    readStorageValue(TEST_CASE_STORAGE_KEY, initialTestCases)
+    normalizeTestCases(
+      readStorageValue(TEST_CASE_STORAGE_KEY, initialTestCases)
+    )
   );
   const [versions, setVersions] = useState(() =>
-    readStorageValue(TEST_CASE_VERSION_STORAGE_KEY, INITIAL_TEST_CASE_VERSIONS)
+    normalizeVersions(
+      readStorageValue(TEST_CASE_VERSION_STORAGE_KEY, INITIAL_TEST_CASE_VERSIONS)
+    )
   );
-  const [selectedVersionId, setSelectedVersionId] =
-    useState(VERSION_FILTER_ALL);
-  const [customMenus, setCustomMenus] = useState(() =>
-    readStorageValue(TEST_CASE_CUSTOM_MENU_STORAGE_KEY, [])
+  const [activeVersionId, setActiveVersionId] = useState(null);
+  const [customMenuPool, setCustomMenuPool] = useState(() =>
+    readStorageValue(TEST_CASE_CUSTOM_MENU_POOL_KEY, [])
   );
   const [selectedMenu, setSelectedMenu] = useState(TOTAL_MENU);
   const [searchText, setSearchText] = useState("");
@@ -84,8 +97,27 @@ function TestCaseListPage({
   const [dragUid, setDragUid] = useState(null);
   const [editingTestCase, setEditingTestCase] = useState(null);
   const [isVersionManagerOpen, setIsVersionManagerOpen] = useState(false);
-  const [isSubMenuManagerOpen, setIsSubMenuManagerOpen] = useState(false);
   const isDraggingRef = useRef(false);
+
+  const activeVersion = versions.find((version) => version.id === activeVersionId);
+
+  const sidebarMenus = useMemo(() => {
+    if (!activeVersion) {
+      return SIDEBAR_MENUS;
+    }
+
+    return activeVersion.menus ?? [...FIXED_VERSION_MENUS];
+  }, [activeVersion]);
+
+  const addableMenus = useMemo(
+    () => [
+      ...TC_MENUS,
+      ...customMenuPool.map((menu) => menu.label),
+    ],
+    [customMenuPool]
+  );
+
+  const pageHeading = activeVersion?.name ?? "테스트 케이스";
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -103,85 +135,33 @@ function TestCaseListPage({
 
   useEffect(() => {
     window.localStorage.setItem(
-      TEST_CASE_CUSTOM_MENU_STORAGE_KEY,
-      JSON.stringify(customMenus)
+      TEST_CASE_CUSTOM_MENU_POOL_KEY,
+      JSON.stringify(customMenuPool)
     );
-  }, [customMenus]);
+  }, [customMenuPool]);
 
-  const customMenuLabels = useMemo(
-    () => customMenus.map((menu) => menu.label),
-    [customMenus]
-  );
-
-  const managedMenus = useMemo(
-    () => [...SIDEBAR_MENUS, ...customMenuLabels],
-    [customMenuLabels]
-  );
-
-  const addableMenus = useMemo(
-    () => [...TC_MENUS, ...customMenuLabels],
-    [customMenuLabels]
-  );
-
-  const baseFilteredTestCases = useMemo(
-    () =>
-      filterTestCases(testCases, selectedMenu, searchText, workingFilter),
-    [testCases, selectedMenu, searchText, workingFilter]
-  );
-
-  const filteredTestCases = useMemo(() => {
-    if (selectedVersionId === VERSION_FILTER_ALL) {
-      return baseFilteredTestCases;
+  useEffect(() => {
+    if (!sidebarMenus.includes(selectedMenu)) {
+      setSelectedMenu(TOTAL_MENU);
     }
+  }, [selectedMenu, sidebarMenus]);
 
-    return baseFilteredTestCases.filter((testCase) =>
-      testCase.versions?.includes(selectedVersionId)
-    );
-  }, [baseFilteredTestCases, selectedVersionId]);
+  const filteredTestCases = useMemo(
+    () =>
+      filterTestCases(
+        testCases,
+        selectedMenu,
+        searchText,
+        workingFilter,
+        activeVersionId
+      ),
+    [testCases, selectedMenu, searchText, workingFilter, activeVersionId]
+  );
 
   const displayTestCases = useMemo(
     () => assignDisplayIds(filteredTestCases),
     [filteredTestCases]
   );
-
-  const managerTestCases = useMemo(
-    () => assignDisplayIds(testCases),
-    [testCases]
-  );
-
-  const selectedVersion = versions.find(
-    (version) => version.id === selectedVersionId
-  );
-  const selectedVersionLabel =
-    selectedVersionId === VERSION_FILTER_ALL
-      ? "전체 버전"
-      : selectedVersion?.name ?? "선택한 버전";
-
-  const getAssigneeName = (assigneeId) =>
-    TC_ASSIGNEE_OPTIONS.find((option) => option.id === assigneeId)?.name ??
-    assigneeId;
-
-  const createTestCaseTarget = (testCase) => ({
-    type: "testcase",
-    uid: testCase.uid,
-  });
-
-  useEffect(() => {
-    if (notificationTarget?.type !== "testcase") {
-      return;
-    }
-
-    const targetCase = assignDisplayIds(testCases).find(
-      (testCase) => testCase.uid === notificationTarget.uid
-    );
-
-    if (targetCase) {
-      setSelectedMenu(targetCase.menu ?? TOTAL_MENU);
-      setEditingTestCase(targetCase);
-    }
-
-    onNotificationTargetHandled?.();
-  }, [notificationTarget, onNotificationTargetHandled, testCases]);
 
   const visibleUids = filteredTestCases.map((testCase) => testCase.uid);
   const isAllSelected =
@@ -225,14 +205,20 @@ function TestCaseListPage({
     }
 
     const uid = createUid();
-    const newTestCase = {
-      ...createEmptyTestCase(selectedMenu, uid),
-      versions:
-        selectedVersionId === VERSION_FILTER_ALL ? [] : [selectedVersionId],
-    };
+    const newTestCase = createEmptyTestCase(
+      selectedMenu,
+      uid,
+      activeVersionId
+    );
     const nextTestCases = [...testCases, newTestCase];
     const createdCase = assignDisplayIds(
-      filterTestCases(nextTestCases, selectedMenu, searchText, workingFilter)
+      filterTestCases(
+        nextTestCases,
+        selectedMenu,
+        searchText,
+        workingFilter,
+        activeVersionId
+      )
     ).find((testCase) => testCase.uid === uid);
 
     setTestCases(nextTestCases);
@@ -244,116 +230,10 @@ function TestCaseListPage({
       return;
     }
 
-    const previousTestCase = testCases.find(
-      (testCase) => testCase.uid === editingTestCase.uid
-    );
-    const displayId = editingTestCase.displayId ?? editingTestCase.id;
-    const nextNotifications = [];
-
-    if (
-      previousTestCase &&
-      previousTestCase.assigneeId !== formData.assigneeId &&
-      formData.assigneeId
-    ) {
-      if (formData.assigneeId !== loginUser) {
-        nextNotifications.push(
-          createNotification({
-            type: "assignee",
-            title: "[담당자 지정]",
-            message: `${displayId} 담당자로 지정되었습니다.`,
-            recipientId: formData.assigneeId,
-            recipientName: getAssigneeName(formData.assigneeId),
-            target: createTestCaseTarget(editingTestCase),
-          })
-        );
-      }
-    }
-
-    if (
-      previousTestCase &&
-      (previousTestCase.tcStatus ?? "Ready") !== formData.tcStatus
-    ) {
-      if (formData.assigneeId && formData.assigneeId !== loginUser) {
-        nextNotifications.push(
-          createNotification({
-            type: "status",
-            title: "[상태 변경]",
-            message: `${displayId} 상태가 ${
-              previousTestCase.tcStatus ?? "Ready"
-            } → ${formData.tcStatus} 으로 변경되었습니다.`,
-            recipientId: formData.assigneeId,
-            recipientName: getAssigneeName(formData.assigneeId),
-            target: createTestCaseTarget(editingTestCase),
-          })
-        );
-      }
-    }
-
     setTestCases((prev) =>
       updateTestCase(prev, editingTestCase.uid, formData)
     );
-    if (nextNotifications.length > 0) {
-      onAddNotifications?.(nextNotifications);
-    }
     setEditingTestCase(null);
-  };
-
-  const handleAddComment = (testCase, text) => {
-    const actorName = getUserDisplayName(loginUser);
-    const displayId = testCase.displayId ?? testCase.id;
-    const logItem = {
-      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      text,
-      authorName: actorName,
-      createdAt: new Date().toISOString(),
-    };
-
-    setTestCases((prev) =>
-      prev.map((item) =>
-        item.uid === testCase.uid
-          ? { ...item, activityLogs: [logItem, ...(item.activityLogs ?? [])] }
-          : item
-      )
-    );
-    setEditingTestCase((prev) =>
-      prev && prev.uid === testCase.uid
-        ? { ...prev, activityLogs: [logItem, ...(prev.activityLogs ?? [])] }
-        : prev
-    );
-
-    const mentionNotifications = resolveMentionedUsers(text)
-      .filter((user) => user.id !== loginUser)
-      .map((user) =>
-        createNotification({
-          type: "mention",
-          title: "[멘션]",
-          message: `${actorName}님이 ${displayId}에서 ${testCase.checkItem} 확인을 요청했습니다.`,
-          recipientId: user.id,
-          recipientName: user.name,
-          target: createTestCaseTarget(testCase),
-        })
-      );
-
-    if (mentionNotifications.length > 0) {
-      onAddNotifications?.(mentionNotifications);
-    }
-  };
-
-  const handleRequestRetest = (testCase) => {
-    const displayId = testCase.displayId ?? testCase.id;
-
-    if (testCase.assigneeId && testCase.assigneeId !== loginUser) {
-      onAddNotifications?.(
-        createNotification({
-          type: "retest",
-          title: "[재검증 요청]",
-          message: `${displayId} 재검증이 요청되었습니다.`,
-          recipientId: testCase.assigneeId,
-          recipientName: getAssigneeName(testCase.assigneeId),
-          target: createTestCaseTarget(testCase),
-        })
-      );
-    }
   };
 
   const handleDeleteByUids = (uids) => {
@@ -389,12 +269,26 @@ function TestCaseListPage({
   };
 
   const handleExcelDownload = () => {
-    if (testCases.length === 0) {
+    const exportCases = filterTestCases(
+      testCases,
+      TOTAL_MENU,
+      "",
+      IS_WORKING_FILTER_ALL,
+      activeVersionId
+    );
+
+    if (exportCases.length === 0) {
       alert(EXCEL_DOWNLOAD_EMPTY_ALERT);
       return;
     }
 
-    downloadTestCasesExcel(testCases);
+    downloadTestCasesExcel(exportCases);
+  };
+
+  const handleApplyVersion = (versionId) => {
+    setActiveVersionId(versionId);
+    setSelectedMenu(TOTAL_MENU);
+    setSelectedUids(new Set());
   };
 
   const handleAddVersion = ({ name, description }) => {
@@ -410,8 +304,15 @@ function TestCaseListPage({
       return;
     }
 
-    setVersions((prev) => [...prev, { id, name, description }]);
-    setSelectedVersionId(id);
+    setVersions((prev) => [
+      ...prev,
+      {
+        id,
+        name,
+        description,
+        menus: [...FIXED_VERSION_MENUS],
+      },
+    ]);
   };
 
   const handleUpdateVersion = (versionId, formData) => {
@@ -436,134 +337,102 @@ function TestCaseListPage({
   const handleDeleteVersion = (versionId) => {
     setVersions((prev) => prev.filter((version) => version.id !== versionId));
     setTestCases((prev) =>
-      prev.map((testCase) => ({
-        ...testCase,
-        versions: (testCase.versions ?? []).filter((id) => id !== versionId),
-      }))
+      prev.filter((testCase) => testCase.versionId !== versionId)
     );
 
-    if (selectedVersionId === versionId) {
-      setSelectedVersionId(VERSION_FILTER_ALL);
+    if (activeVersionId === versionId) {
+      setActiveVersionId(null);
     }
   };
 
-  const handleToggleTestCaseVersion = (uid, versionId) => {
-    setTestCases((prev) =>
-      prev.map((testCase) => {
-        if (testCase.uid !== uid) {
-          return testCase;
+  const handleInsertMenu = (versionId, menuName) => {
+    setVersions((prev) =>
+      prev.map((version) => {
+        if (version.id !== versionId) {
+          return version;
         }
 
-        const versionSet = new Set(testCase.versions ?? []);
+        const nextMenus = ensureVersionMenus([
+          ...(version.menus ?? []),
+          menuName,
+        ]);
 
-        if (versionSet.has(versionId)) {
-          versionSet.delete(versionId);
-        } else {
-          versionSet.add(versionId);
+        return { ...version, menus: nextMenus };
+      })
+    );
+  };
+
+  const handleRemoveMenu = (versionId, menuName) => {
+    if (isFixedVersionMenu(menuName)) {
+      return;
+    }
+
+    setVersions((prev) =>
+      prev.map((version) => {
+        if (version.id !== versionId) {
+          return version;
         }
 
         return {
-          ...testCase,
-          versions: [...versionSet],
+          ...version,
+          menus: (version.menus ?? []).filter((menu) => menu !== menuName),
+        };
+      })
+    );
+
+    if (activeVersionId === versionId && selectedMenu === menuName) {
+      setSelectedMenu(TOTAL_MENU);
+    }
+  };
+
+  const handleMoveMenu = (versionId, menuName, direction) => {
+    setVersions((prev) =>
+      prev.map((version) => {
+        if (version.id !== versionId) {
+          return version;
+        }
+
+        const menus = [...(version.menus ?? [])];
+        const optionalMenus = menus.filter((menu) => !isFixedVersionMenu(menu));
+        const currentIndex = optionalMenus.indexOf(menuName);
+        const nextIndex = currentIndex + direction;
+
+        if (
+          currentIndex < 0 ||
+          nextIndex < 0 ||
+          nextIndex >= optionalMenus.length
+        ) {
+          return version;
+        }
+
+        const reorderedOptionalMenus = [...optionalMenus];
+        const [movedMenu] = reorderedOptionalMenus.splice(currentIndex, 1);
+        reorderedOptionalMenus.splice(nextIndex, 0, movedMenu);
+
+        return {
+          ...version,
+          menus: [...FIXED_VERSION_MENUS, ...reorderedOptionalMenus],
         };
       })
     );
   };
 
-  const handleAddCustomMenu = (label) => {
-    const exists = managedMenus.some(
-      (menu) => menu.toLowerCase() === label.toLowerCase()
-    );
+  const handleAddCustomMenu = (versionId, label) => {
+    const existsInPool = [
+      ...SIDEBAR_MENUS,
+      ...customMenuPool.map((menu) => menu.label),
+    ].some((menu) => menu.toLowerCase() === label.toLowerCase());
 
-    if (exists) {
+    if (existsInPool) {
       alert("이미 등록된 서브메뉴입니다.");
       return;
     }
 
-    setCustomMenus((prev) => [...prev, { id: createCustomMenuId(), label }]);
-  };
-
-  const handleRenameCustomMenu = (menuId, nextLabel) => {
-    const currentMenu = customMenus.find((menu) => menu.id === menuId);
-
-    if (!currentMenu) {
-      return;
-    }
-
-    const exists = managedMenus.some(
-      (menu) =>
-        menu.toLowerCase() === nextLabel.toLowerCase() &&
-        menu.toLowerCase() !== currentMenu.label.toLowerCase()
-    );
-
-    if (exists) {
-      alert("이미 등록된 서브메뉴입니다.");
-      return;
-    }
-
-    setCustomMenus((prev) =>
-      prev.map((menu) =>
-        menu.id === menuId ? { ...menu, label: nextLabel } : menu
-      )
-    );
-    setTestCases((prev) =>
-      prev.map((testCase) =>
-        testCase.menu === currentMenu.label
-          ? { ...testCase, menu: nextLabel }
-          : testCase
-      )
-    );
-
-    if (selectedMenu === currentMenu.label) {
-      setSelectedMenu(nextLabel);
-    }
-  };
-
-  const handleDeleteCustomMenu = (menuId) => {
-    const targetMenu = customMenus.find((menu) => menu.id === menuId);
-
-    if (!targetMenu) {
-      return;
-    }
-
-    const linkedCount = testCases.filter(
-      (testCase) => testCase.menu === targetMenu.label
-    ).length;
-    const message =
-      linkedCount > 0
-        ? `${targetMenu.label} 서브메뉴를 삭제하시겠습니까? 연결된 TC ${linkedCount}건은 Total에서 계속 조회됩니다.`
-        : `${targetMenu.label} 서브메뉴를 삭제하시겠습니까?`;
-
-    if (!window.confirm(message)) {
-      return;
-    }
-
-    setCustomMenus((prev) => prev.filter((menu) => menu.id !== menuId));
-
-    if (selectedMenu === targetMenu.label) {
-      setSelectedMenu(TOTAL_MENU);
-    }
-  };
-
-  const handleMoveCustomMenu = (menuId, direction) => {
-    setCustomMenus((prev) => {
-      const currentIndex = prev.findIndex((menu) => menu.id === menuId);
-      const nextIndex = currentIndex + direction;
-
-      if (
-        currentIndex < 0 ||
-        nextIndex < 0 ||
-        nextIndex >= prev.length
-      ) {
-        return prev;
-      }
-
-      const nextMenus = [...prev];
-      const [movedMenu] = nextMenus.splice(currentIndex, 1);
-      nextMenus.splice(nextIndex, 0, movedMenu);
-
-      return nextMenus;
-    });
+    setCustomMenuPool((prev) => [
+      ...prev,
+      { id: createCustomMenuId(), label },
+    ]);
+    handleInsertMenu(versionId, label);
   };
 
   const handleDragStart = (e, uid) => {
@@ -623,12 +492,12 @@ function TestCaseListPage({
       notifications={notifications}
       onNotificationClick={onNotificationClick}
       onMarkAllNotificationsRead={onMarkAllNotificationsRead}
-      pageTitle="테스트 케이스"
+      pageTitle={pageHeading}
     >
       <div className="tc-content-card">
         <div className="tc-page-layout">
           <TestCaseFilter
-            menus={managedMenus}
+            menus={sidebarMenus}
             selectedMenu={selectedMenu}
             onSelectMenu={setSelectedMenu}
             isOpen={isSubMenuOpen}
@@ -650,8 +519,7 @@ function TestCaseListPage({
               selectedCount={selectedUids.size}
               onExcelDownloadClick={handleExcelDownload}
               onVersionManageClick={() => setIsVersionManagerOpen(true)}
-              onSubMenuManageClick={() => setIsSubMenuManagerOpen(true)}
-              selectedVersionLabel={selectedVersionLabel}
+              pageHeading={pageHeading}
               isSubMenuOpen={isSubMenuOpen}
               onToggleSubMenu={() => setIsSubMenuOpen(true)}
             />
@@ -682,32 +550,22 @@ function TestCaseListPage({
         onClose={() => setEditingTestCase(null)}
         onSave={handleSaveEdit}
         onDelete={handleDeleteFromModal}
-        onAddComment={handleAddComment}
-        onRequestRetest={handleRequestRetest}
       />
 
       <TestCaseVersionManager
         isOpen={isVersionManagerOpen}
         versions={versions}
-        selectedVersionId={selectedVersionId}
-        testCases={managerTestCases}
+        activeVersionId={activeVersionId}
+        customMenuPool={customMenuPool}
         onClose={() => setIsVersionManagerOpen(false)}
-        onSelectVersion={setSelectedVersionId}
+        onApplyVersion={handleApplyVersion}
         onAddVersion={handleAddVersion}
         onUpdateVersion={handleUpdateVersion}
         onDeleteVersion={handleDeleteVersion}
-        onToggleTestCaseVersion={handleToggleTestCaseVersion}
-      />
-
-      <SubMenuManagerModal
-        isOpen={isSubMenuManagerOpen}
-        defaultMenus={SIDEBAR_MENUS}
-        customMenus={customMenus}
-        onClose={() => setIsSubMenuManagerOpen(false)}
-        onAddMenu={handleAddCustomMenu}
-        onRenameMenu={handleRenameCustomMenu}
-        onDeleteMenu={handleDeleteCustomMenu}
-        onMoveMenu={handleMoveCustomMenu}
+        onInsertMenu={handleInsertMenu}
+        onRemoveMenu={handleRemoveMenu}
+        onMoveMenu={handleMoveMenu}
+        onAddCustomMenu={handleAddCustomMenu}
       />
     </MainLayout>
   );

@@ -1,5 +1,5 @@
 import { APP_SIDEBAR_MENUS } from "../../constants/appConstants";
-import { getUserDisplayName } from "../../features/notifications/notificationUtils";
+import { getUserDisplayName } from "../../features/auth/constants/authConstants";
 
 function Sidebar({ loginUser, activeMenu, onMenuChange }) {
   const displayName = getUserDisplayName(loginUser);

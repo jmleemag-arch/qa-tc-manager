@@ -8,8 +8,7 @@ function TestCaseToolbar({
   selectedCount,
   onExcelDownloadClick,
   onVersionManageClick,
-  onSubMenuManageClick,
-  selectedVersionLabel,
+  pageHeading,
   isSubMenuOpen,
   onToggleSubMenu,
 }) {
@@ -33,7 +32,7 @@ function TestCaseToolbar({
             </button>
           )}
           <div>
-            <h1>테스트 케이스</h1>
+            <h1>{pageHeading}</h1>
             <p>업무별 TC 시트 기준으로 작성한 테스트 케이스 목록입니다.</p>
           </div>
         </div>
@@ -45,14 +44,6 @@ function TestCaseToolbar({
             onClick={onVersionManageClick}
           >
             버전 관리
-          </button>
-
-          <button
-            type="button"
-            className="tc-manage-btn"
-            onClick={onSubMenuManageClick}
-          >
-            서브메뉴 관리
           </button>
 
           <button type="button" className="add-btn" onClick={onAddClick}>
@@ -97,9 +88,6 @@ function TestCaseToolbar({
         </form>
 
         <div className="result-count">
-          {selectedVersionLabel && (
-            <span className="tc-version-filter">{selectedVersionLabel}</span>
-          )}
           총 <strong>{resultCount}</strong>건
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import LoginPage from "./features/auth/pages/LoginPage";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import DashboardPage from "./features/dashboard/pages/DashboardPage";
@@ -9,12 +9,6 @@ import {
   AUTH_SESSION_KEY,
 } from "./features/auth/constants/authConstants";
 import { APP_SIDEBAR_MENUS, PAGE_TITLES } from "./constants/appConstants";
-import {
-  filterNotificationsForUser,
-  pruneNotifications,
-  readStoredNotifications,
-  saveStoredNotifications,
-} from "./features/notifications/notificationUtils";
 
 const ACTIVE_MENU_DASHBOARD = APP_SIDEBAR_MENUS[0];
 const ACTIVE_MENU_TEST_CASES = APP_SIDEBAR_MENUS[1];
@@ -56,16 +50,8 @@ function createAuthSession(userId) {
 function App() {
   const [authSession, setAuthSession] = useState(() => getStoredAuthSession());
   const [activeMenu, setActiveMenu] = useState(ACTIVE_MENU_DASHBOARD);
-  const [notifications, setNotifications] = useState(() =>
-    readStoredNotifications()
-  );
-  const [notificationTarget, setNotificationTarget] = useState(null);
 
   const isLoggedIn = Boolean(authSession);
-
-  useEffect(() => {
-    saveStoredNotifications(notifications);
-  }, [notifications]);
 
   useEffect(() => {
     if (!authSession) {
@@ -93,59 +79,6 @@ function App() {
     setActiveMenu(ACTIVE_MENU_DASHBOARD);
   };
 
-  const handleAddNotifications = (nextNotifications) => {
-    const items = Array.isArray(nextNotifications)
-      ? nextNotifications
-      : [nextNotifications];
-
-    setNotifications((prev) => pruneNotifications([...items, ...prev]));
-  };
-
-  const handleMarkNotificationRead = (notificationId) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === notificationId
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
-  };
-
-  const handleMarkAllNotificationsRead = () => {
-    const userId = authSession?.userId;
-
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        !notification.recipientId || notification.recipientId === userId
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
-  };
-
-  const handleNotificationClick = (notification) => {
-    handleMarkNotificationRead(notification.id);
-
-    if (!notification.target) {
-      return;
-    }
-
-    setNotificationTarget(notification.target);
-
-    if (notification.target.type === "testcase") {
-      setActiveMenu(ACTIVE_MENU_TEST_CASES);
-    }
-
-    if (notification.target.type === "version") {
-      setActiveMenu(ACTIVE_MENU_TEST_RUNS);
-    }
-  };
-
-  const visibleNotifications = useMemo(
-    () => filterNotificationsForUser(notifications, authSession?.userId),
-    [notifications, authSession?.userId]
-  );
-
   if (!isLoggedIn) {
     return <LoginPage onLogin={handleLogin} />;
   }
@@ -156,9 +89,9 @@ function App() {
     activeMenu,
     onMenuChange: setActiveMenu,
     pageTitle: PAGE_TITLES[activeMenu] || activeMenu,
-    notifications: visibleNotifications,
-    onNotificationClick: handleNotificationClick,
-    onMarkAllNotificationsRead: handleMarkAllNotificationsRead,
+    notifications: [],
+    onNotificationClick: () => {},
+    onMarkAllNotificationsRead: () => {},
   };
 
   if (activeMenu === ACTIVE_MENU_DASHBOARD) {
@@ -166,25 +99,11 @@ function App() {
   }
 
   if (activeMenu === ACTIVE_MENU_TEST_CASES) {
-    return (
-      <TestCaseListPage
-        {...pageProps}
-        notificationTarget={notificationTarget}
-        onNotificationTargetHandled={() => setNotificationTarget(null)}
-        onAddNotifications={handleAddNotifications}
-      />
-    );
+    return <TestCaseListPage {...pageProps} />;
   }
 
   if (activeMenu === ACTIVE_MENU_TEST_RUNS) {
-    return (
-      <TestRunListPage
-        {...pageProps}
-        notificationTarget={notificationTarget}
-        onNotificationTargetHandled={() => setNotificationTarget(null)}
-        onAddNotifications={handleAddNotifications}
-      />
-    );
+    return <TestRunListPage {...pageProps} />;
   }
 
   return <PlaceholderPage {...pageProps} />;

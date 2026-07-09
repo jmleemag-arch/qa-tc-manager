@@ -1,19 +1,37 @@
 import {
+  FIXED_VERSION_MENUS,
   IS_WORKING_FILTER_ALL,
   SEARCHABLE_FIELDS,
   TC_MENUS,
   TOTAL_MENU,
 } from "../constants/testCaseConstants";
 
+export function ensureVersionMenus(menus = []) {
+  const optionalMenus = menus.filter(
+    (menu) => !FIXED_VERSION_MENUS.includes(menu)
+  );
+
+  return [...FIXED_VERSION_MENUS, ...optionalMenus];
+}
+
+export function isFixedVersionMenu(menu) {
+  return FIXED_VERSION_MENUS.includes(menu);
+}
+
 export function filterTestCases(
   testCases,
   selectedMenu,
   searchText,
-  workingFilter = IS_WORKING_FILTER_ALL
+  workingFilter = IS_WORKING_FILTER_ALL,
+  versionId = null
 ) {
   const normalizedSearch = searchText.toLowerCase().trim();
 
   return testCases.filter((tc) => {
+    const isVersionMatched = versionId
+      ? tc.versionId === versionId
+      : !tc.versionId;
+
     const isMenuMatched =
       !selectedMenu ||
       selectedMenu === TOTAL_MENU ||
@@ -23,7 +41,7 @@ export function filterTestCases(
       workingFilter === IS_WORKING_FILTER_ALL || tc.isWorking === workingFilter;
 
     if (!normalizedSearch) {
-      return isMenuMatched && isWorkingMatched;
+      return isVersionMatched && isMenuMatched && isWorkingMatched;
     }
 
     const isSearchMatched = SEARCHABLE_FIELDS.some((field) =>
@@ -32,7 +50,9 @@ export function filterTestCases(
         .includes(normalizedSearch)
     );
 
-    return isMenuMatched && isWorkingMatched && isSearchMatched;
+    return (
+      isVersionMatched && isMenuMatched && isWorkingMatched && isSearchMatched
+    );
   });
 }
 
@@ -48,21 +68,18 @@ export function assignDisplayIds(testCases) {
   }));
 }
 
-export function createEmptyTestCase(menu, uid) {
+export function createEmptyTestCase(menu, uid, versionId = null) {
   return {
     uid,
     id: "",
     menu,
+    versionId,
     subMenu: "",
     checkItem: "",
     checkMethod: "",
     checkResult: "",
     isWorking: "O",
     note: "",
-    versions: [],
-    assigneeId: "",
-    tcStatus: "Ready",
-    activityLogs: [],
   };
 }
 
@@ -80,10 +97,6 @@ export function updateTestCase(testCases, uid, formData) {
       checkResult: formData.checkResult.trim(),
       isWorking: formData.isWorking,
       note: formData.note.trim(),
-      versions: testCase.versions ?? [],
-      assigneeId: formData.assigneeId,
-      tcStatus: formData.tcStatus,
-      activityLogs: testCase.activityLogs ?? [],
     };
   });
 }
@@ -133,7 +146,5 @@ export function getEditableFormData(testCase) {
     checkResult: testCase.checkResult,
     isWorking: testCase.isWorking,
     note: testCase.note,
-    assigneeId: testCase.assigneeId ?? "",
-    tcStatus: testCase.tcStatus ?? "Ready",
   };
 }

@@ -28,7 +28,6 @@ import {
   getSummaryStats,
   updateTestRunCaseResult,
 } from "../utils/testRunUtils";
-import { createNotification } from "../../notifications/notificationUtils";
 
 function TestRunListPage({
   loginUser,
@@ -39,9 +38,6 @@ function TestRunListPage({
   notifications,
   onNotificationClick,
   onMarkAllNotificationsRead,
-  notificationTarget,
-  onNotificationTargetHandled,
-  onAddNotifications,
 }) {
   const [testRuns, setTestRuns] = useState(initialTestRuns);
   const [selectedRunId, setSelectedRunId] = useState(null);
@@ -174,14 +170,6 @@ function TestRunListPage({
       [...prev, newVersion].sort((a, b) => a.version.localeCompare(b.version))
     );
     setFocusedIssueVersion(newVersion.version);
-    onAddNotifications?.(
-      createNotification({
-        type: "version-created",
-        title: "[버전 생성]",
-        message: `${newVersion.version} 버전이 생성되었습니다.`,
-        target: { type: "version", version: newVersion.version },
-      })
-    );
   };
 
   const handleVersionRelease = (versionName) => {
@@ -192,37 +180,11 @@ function TestRunListPage({
           : version
       )
     );
-    onAddNotifications?.(
-      createNotification({
-        type: "version-release",
-        title: "[릴리즈]",
-        message: `${versionName} 버전이 릴리즈 상태로 변경되었습니다.`,
-        target: { type: "version", version: versionName },
-      })
-    );
   };
 
   const handleVersionRetest = (versionName) => {
-    onAddNotifications?.(
-      createNotification({
-        type: "version-retest",
-        title: "[재검증]",
-        message: `${versionName} 버전에 대한 재검증이 요청되었습니다.`,
-        target: { type: "version", version: versionName },
-      })
-    );
+    setFocusedIssueVersion(versionName);
   };
-
-  useEffect(() => {
-    if (notificationTarget?.type !== "version") {
-      return;
-    }
-
-    setSelectedRunId(null);
-    setActiveTab("issue-progress");
-    setFocusedIssueVersion(notificationTarget.version);
-    onNotificationTargetHandled?.();
-  }, [notificationTarget, onNotificationTargetHandled]);
 
   return (
     <MainLayout

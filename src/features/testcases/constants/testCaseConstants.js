@@ -13,6 +13,8 @@ export const ACTIVE_HEADER_MENU = "테스트 케이스";
 
 export const TOTAL_MENU = "Total";
 
+export const FIXED_VERSION_MENUS = [TOTAL_MENU, "접속페이지"];
+
 export const TC_MENUS = [
   "접속페이지",
   "대시보드",
@@ -27,25 +29,30 @@ export const TC_MENUS = [
   "설정",
 ];
 
-export const SIDEBAR_MENUS = [TOTAL_MENU, ...TC_MENUS];
+export const INSERTABLE_MENU_POOL = TC_MENUS.filter(
+  (menu) => !FIXED_VERSION_MENUS.includes(menu)
+);
 
-export const VERSION_FILTER_ALL = "ALL";
+export const SIDEBAR_MENUS = [TOTAL_MENU, ...TC_MENUS];
 
 export const INITIAL_TEST_CASE_VERSIONS = [
   {
-    id: "v1.0",
-    name: "v1.0",
-    description: "Initial login checks",
+    id: "26.1.0",
+    name: "26.1.0",
+    description: "",
+    menus: [TOTAL_MENU, "접속페이지", "대시보드"],
   },
   {
-    id: "v1.1",
-    name: "v1.1",
-    description: "Login exception checks",
+    id: "26.1.1",
+    name: "26.1.1",
+    description: "",
+    menus: [TOTAL_MENU, "접속페이지", "대시보드", "장애 현황"],
   },
   {
-    id: "v1.2",
-    name: "v1.2",
-    description: "Session management checks",
+    id: "26.2.0",
+    name: "26.2.0",
+    description: "",
+    menus: [TOTAL_MENU, "접속페이지", "장애 현황", "플로우 맵"],
   },
 ];
 
@@ -57,15 +64,6 @@ export const MENU_SELECT_ALERT = "메뉴를 먼저 선택해주세요.";
 export const DELETE_SELECT_ALERT = "삭제할 TC를 선택해주세요.";
 
 export const IS_WORKING_OPTIONS = ["O", "X"];
-
-export const TC_ASSIGNEE_OPTIONS = [
-  { id: "", name: "미지정" },
-  { id: "tester1", name: "김철수" },
-  { id: "lee-jumi", name: "이주미" },
-  { id: "qa-manager", name: "QA Manager" },
-];
-
-export const TC_STATUS_OPTIONS = ["Ready", "Testing", "Done", "Blocked"];
 
 export const IS_WORKING_FILTER_ALL = "ALL";
 

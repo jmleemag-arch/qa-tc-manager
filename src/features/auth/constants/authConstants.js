@@ -12,3 +12,7 @@ export const LOGIN_ERROR_MESSAGE =
 
 export const AUTH_SESSION_KEY = "qa-tc-manager-auth-session";
 export const AUTH_SESSION_DURATION_MS = 10 * 60 * 1000;
+
+export function getUserDisplayName(userId) {
+  return DEMO_USERS.find((user) => user.id === userId)?.name ?? userId;
+}
