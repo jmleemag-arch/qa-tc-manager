@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { DELETE_ISSUE_VERSION_CONFIRM, VIEW_ALL_RUNS_ALERT } from "../constants/testRunConstants";
+import { DELETE_ISSUE_VERSION_CONFIRM } from "../constants/defectConstants";
 import VersionYearVersionPicker from "./VersionYearVersionPicker";
 import {
   getDefaultVersionForYear,
   getDefaultYearLabel,
   getVersionYearLabel,
 } from "../utils/issueVersionUtils";
-import { calculateProgress, getProgressTone, getStatusTone } from "../utils/testRunUtils";
 
 const EMPTY_WEEK_FORM = {
   dateValue: "",
@@ -597,63 +596,6 @@ function AddVersionModal({ isOpen, versions, onClose, onCreate }) {
   );
 }
 
-function RecentRunsTable({ recentRuns }) {
-  return (
-    <section className="tr-issue-card tr-recent-runs-card">
-      <div className="tr-section-header">
-        <h3>최근 테스트 런</h3>
-        <button type="button" className="tr-small-view-btn" onClick={() => alert(VIEW_ALL_RUNS_ALERT)}>
-          전체 보기
-        </button>
-      </div>
-
-      <div className="tr-compact-table-scroll">
-        <table className="tr-compact-run-table">
-          <thead>
-            <tr>
-              <th>런 ID</th>
-              <th>런 이름</th>
-              <th>대상 메뉴</th>
-              <th>상태</th>
-              <th>진행률</th>
-              <th>생성일</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentRuns.map((run) => {
-              const progress = calculateProgress(run.completedCount, run.totalCount);
-              const progressTone = getProgressTone(progress);
-
-              return (
-                <tr key={run.runId}>
-                  <td className="tr-run-id">{run.runId}</td>
-                  <td className="tr-compact-run-name">{run.runName}</td>
-                  <td>{run.targetMenu}</td>
-                  <td>
-                    <span className={`tr-status-badge tr-status-${getStatusTone(run.status)}`}>
-                      {run.status}
-                    </span>
-                  </td>
-                  <td className="tr-progress-cell">
-                    <span className="tr-progress-text">{progress}%</span>
-                    <div className="tr-progress-track">
-                      <div
-                        className={`tr-progress-fill tr-progress-${progressTone}`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </td>
-                  <td className="tr-created-at">{run.createdAt}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
 function MenuIssueDistribution({ items }) {
   const max = Math.max(...items.map((item) => item.count), 1);
 
@@ -752,7 +694,6 @@ function IssueSeverityChart({ distribution }) {
 function IssueProgressDashboard({
   versions,
   allVersions,
-  recentRuns,
   menuDistribution,
   recentIssues,
   severityDistribution,
@@ -873,7 +814,6 @@ function IssueProgressDashboard({
             />
           ) : null}
         </section>
-        <RecentRunsTable recentRuns={recentRuns} />
       </div>
 
       <div className="tr-issue-bottom-grid">

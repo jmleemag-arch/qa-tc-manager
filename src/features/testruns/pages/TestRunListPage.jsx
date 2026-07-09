@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
-import IssueProgressDashboard from "../components/IssueProgressDashboard";
+import { issueProgressVersions } from "../../defects/data/defectMockData";
+import { readIssueVersions } from "../../defects/utils/issueVersionStorage";
 import TestRunCreateModal from "../components/TestRunCreateModal";
 import TestRunStatusChart from "../components/TestRunStatusChart";
 import TestRunSummaryCards from "../components/TestRunSummaryCards";
@@ -8,13 +9,7 @@ import TestRunTable from "../components/TestRunTable";
 import TestRunDetailPage from "./TestRunDetailPage";
 import { testCases as allTestCases } from "../../testcases/data/testCaseMockData";
 import { MENU_FILTER_ALL, STATUS_FILTER_ALL } from "../constants/testRunConstants";
-import {
-  issueMenuDistribution,
-  issueProgressVersions,
-  issueSeverityDistribution,
-  recentIssues,
-  testRuns as initialTestRuns,
-} from "../data/testRunMockData";
+import { testRuns as initialTestRuns } from "../data/testRunMockData";
 import {
   downloadTestRunDetailExcel,
   downloadTestRunListExcel,
@@ -23,7 +18,6 @@ import {
   deleteTestRun,
   filterTestRuns,
   findTestRunById,
-  getRecentTestRuns,
   getStatusDistribution,
   getSummaryStats,
   updateTestRunCaseResult,
@@ -48,12 +42,10 @@ function TestRunListPage({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchText, setSearchText] = useState("");
-  const [issueStartDate, setIssueStartDate] = useState("2026-05-21");
-  const [issueEndDate, setIssueEndDate] = useState("2026-07-30");
-  const [issueVersions, setIssueVersions] = useState(issueProgressVersions);
-  const [focusedIssueVersion, setFocusedIssueVersion] = useState("");
+  const [issueVersions, setIssueVersions] = useState(() =>
+    readIssueVersions(issueProgressVersions)
+  );
   const selectedRunId = routeParams.runId ?? null;
-  const activeTab = routeParams.tab === "run-list" ? "run-list" : "issue-progress";
 
   const selectedTestRun = useMemo(
     () => findTestRunById(testRuns, selectedRunId),
@@ -72,27 +64,16 @@ function TestRunListPage({
       }),
     [testRuns, statusFilter, menuFilter, searchText, startDate, endDate]
   );
-  const recentRuns = useMemo(
-    () => getRecentTestRuns(testRuns),
-    [testRuns]
-  );
   const statusDistribution = useMemo(
     () => getStatusDistribution(testRuns),
     [testRuns]
   );
-  const filteredIssueVersions = useMemo(
-    () =>
-      issueVersions.map((version) => ({
-        ...version,
-        rows: version.rows.filter((row) => {
-          const isAfterStart = !issueStartDate || row.dateValue >= issueStartDate;
-          const isBeforeEnd = !issueEndDate || row.dateValue <= issueEndDate;
 
-          return isAfterStart && isBeforeEnd;
-        }),
-      })),
-    [issueVersions, issueStartDate, issueEndDate]
-  );
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      setIssueVersions(readIssueVersions(issueProgressVersions));
+    }
+  }, [isCreateModalOpen]);
 
   const handleCreateTestRun = (newTestRun) => {
     setTestRuns((prev) => [...prev, newTestRun]);
@@ -100,15 +81,11 @@ function TestRunListPage({
   };
 
   const handleViewRun = (runId) => {
-    onRouteChange?.({ tab: "run-list", runId });
+    onRouteChange?.({ runId });
   };
 
   const handleBackToRunList = () => {
-    onRouteChange?.({ tab: "run-list", runId: null });
-  };
-
-  const handleTabChange = (tabName) => {
-    onRouteChange?.({ tab: tabName, runId: null });
+    onRouteChange?.({ runId: null });
   };
 
   const handleDeleteRun = (runId) => {
@@ -141,53 +118,6 @@ function TestRunListPage({
     downloadTestRunDetailExcel(selectedTestRun);
   };
 
-  const handleSaveIssueWeek = (versionName, weekData) => {
-    setIssueVersions((prev) =>
-      prev.map((version) => {
-        if (version.version !== versionName) {
-          return version;
-        }
-
-        const rows = version.rows.some((row) => row.id === weekData.id)
-          ? version.rows.map((row) => (row.id === weekData.id ? weekData : row))
-          : [...version.rows, weekData];
-
-        return {
-          ...version,
-          rows: [...rows].sort((a, b) => a.dateValue.localeCompare(b.dateValue)),
-        };
-      })
-    );
-  };
-
-  const handleDeleteIssueWeek = (versionName, rowId) => {
-    setIssueVersions((prev) =>
-      prev.map((version) => {
-        if (version.version !== versionName) {
-          return version;
-        }
-
-        return {
-          ...version,
-          rows: version.rows.filter((row) => row.id !== rowId),
-        };
-      })
-    );
-  };
-
-  const handleCreateIssueVersion = (newVersion) => {
-    setIssueVersions((prev) =>
-      [...prev, newVersion].sort((a, b) => a.version.localeCompare(b.version))
-    );
-    setFocusedIssueVersion(newVersion.version);
-  };
-
-  const handleDeleteIssueVersion = (versionName) => {
-    setIssueVersions((prev) =>
-      prev.filter((version) => version.version !== versionName)
-    );
-  };
-
   return (
     <MainLayout
       loginUser={loginUser}
@@ -210,85 +140,29 @@ function TestRunListPage({
         <>
           <TestRunSummaryCards summaryStats={summaryStats} />
           <section className="tr-tab-shell">
-            <div className="tr-tab-bar">
-              <div className="tr-tabs">
-                <button
-                  type="button"
-                  className={activeTab === "issue-progress" ? "active" : ""}
-                  onClick={() => handleTabChange("issue-progress")}
-                >
-                  이슈 진행 현황
-                </button>
-                <button
-                  type="button"
-                  className={activeTab === "run-list" ? "active" : ""}
-                  onClick={() => handleTabChange("run-list")}
-                >
-                  테스트 런 목록
-                </button>
-              </div>
+            <TestRunTable
+              testRuns={filteredTestRuns}
+              hasRegisteredRuns={testRuns.length > 0}
+              statusFilter={statusFilter}
+              menuFilter={menuFilter}
+              startDate={startDate}
+              endDate={endDate}
+              searchText={searchText}
+              onCreateClick={() => setIsCreateModalOpen(true)}
+              onExcelDownloadClick={handleListExcelDownload}
+              onViewRun={handleViewRun}
+              onDeleteRun={handleDeleteRun}
+              onStatusFilterChange={setStatusFilter}
+              onMenuFilterChange={setMenuFilter}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+              onSearchChange={setSearchText}
+              onSearchSubmit={() => {}}
+            />
 
-              {activeTab === "issue-progress" ? (
-                <div className="tr-tab-date-range">
-                  <input
-                    type="date"
-                    value={issueStartDate}
-                    onChange={(e) => setIssueStartDate(e.target.value)}
-                    aria-label="이슈 진행 시작일"
-                  />
-                  <span>~</span>
-                  <input
-                    type="date"
-                    value={issueEndDate}
-                    onChange={(e) => setIssueEndDate(e.target.value)}
-                    aria-label="이슈 진행 종료일"
-                  />
-                </div>
-              ) : null}
+            <div className="tr-bottom-grid tr-bottom-grid-single">
+              <TestRunStatusChart distribution={statusDistribution} />
             </div>
-
-            {activeTab === "issue-progress" ? (
-              <IssueProgressDashboard
-                versions={filteredIssueVersions}
-                allVersions={issueVersions}
-                recentRuns={recentRuns}
-                menuDistribution={issueMenuDistribution}
-                recentIssues={recentIssues}
-                severityDistribution={issueSeverityDistribution}
-                onSaveIssueWeek={handleSaveIssueWeek}
-                onDeleteIssueWeek={handleDeleteIssueWeek}
-                onCreateIssueVersion={handleCreateIssueVersion}
-                onDeleteIssueVersion={handleDeleteIssueVersion}
-                focusedVersionName={focusedIssueVersion}
-                onFocusedVersionHandled={() => setFocusedIssueVersion("")}
-              />
-            ) : (
-              <>
-                <TestRunTable
-                  testRuns={filteredTestRuns}
-                  hasRegisteredRuns={testRuns.length > 0}
-                  statusFilter={statusFilter}
-                  menuFilter={menuFilter}
-                  startDate={startDate}
-                  endDate={endDate}
-                  searchText={searchText}
-                  onCreateClick={() => setIsCreateModalOpen(true)}
-                  onExcelDownloadClick={handleListExcelDownload}
-                  onViewRun={handleViewRun}
-                  onDeleteRun={handleDeleteRun}
-                  onStatusFilterChange={setStatusFilter}
-                  onMenuFilterChange={setMenuFilter}
-                  onStartDateChange={setStartDate}
-                  onEndDateChange={setEndDate}
-                  onSearchChange={setSearchText}
-                  onSearchSubmit={() => {}}
-                />
-
-                <div className="tr-bottom-grid tr-bottom-grid-single">
-                  <TestRunStatusChart distribution={statusDistribution} />
-                </div>
-              </>
-            )}
           </section>
         </>
       )}

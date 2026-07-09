@@ -3,11 +3,11 @@ import {
   TARGET_MENU_OPTIONS,
   TARGET_MENU_PLACEHOLDER,
 } from "../constants/testRunConstants";
-import VersionYearVersionPicker from "./VersionYearVersionPicker";
+import VersionYearVersionPicker from "../../defects/components/VersionYearVersionPicker";
 import {
   getDefaultVersionForYear,
   getDefaultYearLabel,
-} from "../utils/issueVersionUtils";
+} from "../../defects/utils/issueVersionUtils";
 import {
   createTestRun,
   getTestCasesByMenu,
