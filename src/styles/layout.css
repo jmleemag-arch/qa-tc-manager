@@ -149,6 +149,7 @@
 }
 
 .app-icon-btn {
+  position: relative;
   width: 38px;
   height: 38px;
   border: 1px solid #e2e8f0;
@@ -158,8 +159,142 @@
   font-size: 16px;
 }
 
+.app-icon-btn span {
+  font-weight: 900;
+}
+
 .app-icon-btn:hover {
   background: #eef2ff;
+}
+
+.app-notification-wrap {
+  position: relative;
+}
+
+.app-notification-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.app-notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 1200;
+  width: 390px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+}
+
+.app-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.app-notification-header strong,
+.app-notification-header span {
+  display: block;
+}
+
+.app-notification-header strong {
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.app-notification-header span {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app-notification-header button {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.app-notification-list {
+  max-height: 420px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.app-notification-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: none;
+  border-bottom: 1px solid #eef2f7;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-notification-item:hover {
+  background: #f8fafc;
+}
+
+.app-notification-item.unread {
+  background: #eff6ff;
+}
+
+.app-notification-title {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.app-notification-item strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.app-notification-meta {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app-notification-empty {
+  margin: 0;
+  padding: 34px 16px;
+  color: #64748b;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .app-logout-btn {

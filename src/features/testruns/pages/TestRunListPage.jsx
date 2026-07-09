@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
 import IssueProgressDashboard from "../components/IssueProgressDashboard";
 import TestRunCreateModal from "../components/TestRunCreateModal";
-import RecentTestRuns from "../components/RecentTestRuns";
 import TestRunStatusChart from "../components/TestRunStatusChart";
 import TestRunSummaryCards from "../components/TestRunSummaryCards";
 import TestRunTable from "../components/TestRunTable";
@@ -29,6 +28,7 @@ import {
   getSummaryStats,
   updateTestRunCaseResult,
 } from "../utils/testRunUtils";
+import { createNotification } from "../../notifications/notificationUtils";
 
 function TestRunListPage({
   loginUser,
@@ -36,6 +36,12 @@ function TestRunListPage({
   activeMenu,
   onMenuChange,
   pageTitle,
+  notifications,
+  onNotificationClick,
+  onMarkAllNotificationsRead,
+  notificationTarget,
+  onNotificationTargetHandled,
+  onAddNotifications,
 }) {
   const [testRuns, setTestRuns] = useState(initialTestRuns);
   const [selectedRunId, setSelectedRunId] = useState(null);
@@ -49,6 +55,7 @@ function TestRunListPage({
   const [issueStartDate, setIssueStartDate] = useState("2026-05-21");
   const [issueEndDate, setIssueEndDate] = useState("2026-07-30");
   const [issueVersions, setIssueVersions] = useState(issueProgressVersions);
+  const [focusedIssueVersion, setFocusedIssueVersion] = useState("");
 
   const selectedTestRun = useMemo(
     () => findTestRunById(testRuns, selectedRunId),
@@ -166,7 +173,56 @@ function TestRunListPage({
     setIssueVersions((prev) =>
       [...prev, newVersion].sort((a, b) => a.version.localeCompare(b.version))
     );
+    setFocusedIssueVersion(newVersion.version);
+    onAddNotifications?.(
+      createNotification({
+        type: "version-created",
+        title: "[버전 생성]",
+        message: `${newVersion.version} 버전이 생성되었습니다.`,
+        target: { type: "version", version: newVersion.version },
+      })
+    );
   };
+
+  const handleVersionRelease = (versionName) => {
+    setIssueVersions((prev) =>
+      prev.map((version) =>
+        version.version === versionName
+          ? { ...version, status: "릴리즈" }
+          : version
+      )
+    );
+    onAddNotifications?.(
+      createNotification({
+        type: "version-release",
+        title: "[릴리즈]",
+        message: `${versionName} 버전이 릴리즈 상태로 변경되었습니다.`,
+        target: { type: "version", version: versionName },
+      })
+    );
+  };
+
+  const handleVersionRetest = (versionName) => {
+    onAddNotifications?.(
+      createNotification({
+        type: "version-retest",
+        title: "[재검증]",
+        message: `${versionName} 버전에 대한 재검증이 요청되었습니다.`,
+        target: { type: "version", version: versionName },
+      })
+    );
+  };
+
+  useEffect(() => {
+    if (notificationTarget?.type !== "version") {
+      return;
+    }
+
+    setSelectedRunId(null);
+    setActiveTab("issue-progress");
+    setFocusedIssueVersion(notificationTarget.version);
+    onNotificationTargetHandled?.();
+  }, [notificationTarget, onNotificationTargetHandled]);
 
   return (
     <MainLayout
@@ -175,6 +231,9 @@ function TestRunListPage({
       activeMenu={activeMenu}
       onMenuChange={onMenuChange}
       pageTitle={pageTitle}
+      notifications={notifications}
+      onNotificationClick={onNotificationClick}
+      onMarkAllNotificationsRead={onMarkAllNotificationsRead}
     >
       {selectedTestRun ? (
         <TestRunDetailPage
@@ -235,6 +294,10 @@ function TestRunListPage({
                 onSaveIssueWeek={handleSaveIssueWeek}
                 onDeleteIssueWeek={handleDeleteIssueWeek}
                 onCreateIssueVersion={handleCreateIssueVersion}
+                focusedVersionName={focusedIssueVersion}
+                onFocusedVersionHandled={() => setFocusedIssueVersion("")}
+                onVersionRelease={handleVersionRelease}
+                onVersionRetest={handleVersionRetest}
               />
             ) : (
               <>
@@ -258,8 +321,7 @@ function TestRunListPage({
                   onSearchSubmit={() => {}}
                 />
 
-                <div className="tr-bottom-grid">
-                  <RecentTestRuns recentRuns={recentRuns} />
+                <div className="tr-bottom-grid tr-bottom-grid-single">
                   <TestRunStatusChart distribution={statusDistribution} />
                 </div>
               </>

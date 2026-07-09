@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VIEW_ALL_RUNS_ALERT } from "../constants/testRunConstants";
 import { calculateProgress, getProgressTone, getStatusTone } from "../utils/testRunUtils";
 
@@ -494,7 +494,15 @@ function IssueWeekInput({ item, allRows, onSave, onDelete }) {
   );
 }
 
-function IssueProgressVersion({ item, allRows, onSave, onDelete, onBack }) {
+function IssueProgressVersion({
+  item,
+  allRows,
+  onSave,
+  onDelete,
+  onBack,
+  onRelease,
+  onRetest,
+}) {
   const chartRows = item.rows.map((row) => ({
     label: formatChartDate(row.dateValue),
     total: row.total,
@@ -510,8 +518,20 @@ function IssueProgressVersion({ item, allRows, onSave, onDelete, onBack }) {
         </button>
         <h3>{item.version} 이슈 진행 상황</h3>
         <div className="tr-version-detail-actions">
-          <button type="button" className="tr-version-outline-btn">✎ 수정</button>
-          <button type="button" className="tr-version-danger-btn">♲ 삭제</button>
+          <button
+            type="button"
+            className="tr-version-outline-btn"
+            onClick={() => onRelease(item.version)}
+          >
+            릴리즈 전환
+          </button>
+          <button
+            type="button"
+            className="tr-version-danger-btn"
+            onClick={() => onRetest(item.version)}
+          >
+            재검증 요청
+          </button>
         </div>
       </div>
 
@@ -850,6 +870,10 @@ function IssueProgressDashboard({
   onSaveIssueWeek,
   onDeleteIssueWeek,
   onCreateIssueVersion,
+  focusedVersionName,
+  onFocusedVersionHandled,
+  onVersionRelease,
+  onVersionRetest,
 }) {
   const [selectedVersionName, setSelectedVersionName] = useState(
     allVersions[0]?.version ?? ""
@@ -861,6 +885,15 @@ function IssueProgressDashboard({
   const selectedAllVersion =
     allVersions.find((version) => version.version === selectedVersion?.version) ??
     selectedVersion;
+
+  useEffect(() => {
+    if (!focusedVersionName) {
+      return;
+    }
+
+    setSelectedVersionName(focusedVersionName);
+    onFocusedVersionHandled?.();
+  }, [focusedVersionName, onFocusedVersionHandled]);
 
   return (
     <div className="tr-issue-dashboard">
@@ -900,6 +933,8 @@ function IssueProgressDashboard({
               onSave={onSaveIssueWeek}
               onDelete={onDeleteIssueWeek}
               onBack={() => setSelectedVersionName(versions[0]?.version ?? "")}
+              onRelease={onVersionRelease}
+              onRetest={onVersionRetest}
             />
           ) : null}
         </section>

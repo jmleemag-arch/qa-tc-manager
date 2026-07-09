@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   DEMO_USER_ID,
   DEMO_USER_PASSWORD,
+  DEMO_USERS,
   LOGIN_ERROR_MESSAGE,
 } from "../constants/authConstants";
 
@@ -13,8 +14,12 @@ function LoginForm({ onLogin }) {
   const handleLogin = (e) => {
     e.preventDefault();
 
-    if (loginId === DEMO_USER_ID && loginPw === DEMO_USER_PASSWORD) {
-      onLogin();
+    const matchedUser = DEMO_USERS.find(
+      (user) => user.id === loginId && user.password === loginPw
+    );
+
+    if (matchedUser) {
+      onLogin(matchedUser.id);
       setLoginError("");
     } else {
       setLoginError(LOGIN_ERROR_MESSAGE);
@@ -50,9 +55,9 @@ function LoginForm({ onLogin }) {
       </form>
 
       <div className="login-help">
-        <span>임시 계정</span>
+        <span>임시 계정 (비밀번호: {DEMO_USER_PASSWORD})</span>
         <strong>
-          {DEMO_USER_ID} / {DEMO_USER_PASSWORD}
+          {DEMO_USERS.map((user) => user.id).join(" / ")}
         </strong>
       </div>
     </>

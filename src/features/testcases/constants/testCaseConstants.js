@@ -58,6 +58,15 @@ export const DELETE_SELECT_ALERT = "삭제할 TC를 선택해주세요.";
 
 export const IS_WORKING_OPTIONS = ["O", "X"];
 
+export const TC_ASSIGNEE_OPTIONS = [
+  { id: "", name: "미지정" },
+  { id: "tester1", name: "김철수" },
+  { id: "lee-jumi", name: "이주미" },
+  { id: "qa-manager", name: "QA Manager" },
+];
+
+export const TC_STATUS_OPTIONS = ["Ready", "Testing", "Done", "Blocked"];
+
 export const IS_WORKING_FILTER_ALL = "ALL";
 
 export const IS_WORKING_FILTER_OPTIONS = [

@@ -2,21 +2,36 @@ import { useEffect, useState } from "react";
 import {
   EDITABLE_TEST_CASE_FIELDS,
   IS_WORKING_OPTIONS,
+  TC_ASSIGNEE_OPTIONS,
+  TC_STATUS_OPTIONS,
 } from "../constants/testCaseConstants";
 import { getEditableFormData } from "../utils/testCaseUtils";
 
-function TestCaseEditModal({ isOpen, testCase, onClose, onSave, onDelete }) {
+function TestCaseEditModal({
+  isOpen,
+  testCase,
+  onClose,
+  onSave,
+  onDelete,
+  onAddComment,
+  onRequestRetest,
+}) {
   const [formData, setFormData] = useState(null);
+  const [commentText, setCommentText] = useState("");
 
   useEffect(() => {
     if (isOpen && testCase) {
       setFormData(getEditableFormData(testCase));
+      setCommentText("");
     }
   }, [isOpen, testCase]);
 
   if (!isOpen || !testCase || !formData) {
     return null;
   }
+
+  const displayId = testCase.displayId ?? testCase.id;
+  const activityLogs = testCase.activityLogs ?? [];
 
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -27,18 +42,25 @@ function TestCaseEditModal({ isOpen, testCase, onClose, onSave, onDelete }) {
     onSave(formData);
   };
 
+  const handleAddComment = () => {
+    const trimmedComment = commentText.trim();
+
+    if (!trimmedComment) {
+      return;
+    }
+
+    onAddComment(testCase, trimmedComment);
+    setCommentText("");
+  };
+
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  const displayId = testCase.displayId ?? testCase.id;
-
   const handleDelete = () => {
-    const confirmed = window.confirm(
-      `${displayId} 항목을 삭제하시겠습니까?`
-    );
+    const confirmed = window.confirm(`${displayId} 항목을 삭제하시겠습니까?`);
 
     if (confirmed) {
       onDelete(testCase.uid);
@@ -120,7 +142,81 @@ function TestCaseEditModal({ isOpen, testCase, onClose, onSave, onDelete }) {
                 ))}
               </select>
             </label>
+
+            <label className="tc-modal-field">
+              <span>담당자</span>
+              <select
+                value={formData.assigneeId}
+                onChange={(e) => handleChange("assigneeId", e.target.value)}
+              >
+                {TC_ASSIGNEE_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="tc-modal-field">
+              <span>TC 상태</span>
+              <select
+                value={formData.tcStatus}
+                onChange={(e) => handleChange("tcStatus", e.target.value)}
+              >
+                {TC_STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
+
+          <section className="tc-notice-workflow">
+            <div className="tc-notice-workflow-header">
+              <div>
+                <h3>코멘트 / 기록</h3>
+                <p>@이주미, @QA Manager 처럼 입력하면 멘션 알림이 생성됩니다.</p>
+              </div>
+              <button
+                type="button"
+                className="tc-modal-cancel-btn"
+                onClick={() => onRequestRetest(testCase)}
+              >
+                재검증 요청
+              </button>
+            </div>
+
+            <div className="tc-comment-input-row">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="@이주미 확인 부탁드립니다."
+                rows={3}
+              />
+              <button
+                type="button"
+                className="tc-modal-save-btn"
+                onClick={handleAddComment}
+              >
+                기록 추가
+              </button>
+            </div>
+
+            {activityLogs.length > 0 ? (
+              <ul className="tc-activity-log-list">
+                {activityLogs.slice(0, 5).map((log) => (
+                  <li key={log.id}>
+                    <strong>{log.authorName}</strong>
+                    <span>{log.text}</span>
+                    <time>{new Date(log.createdAt).toLocaleString("ko-KR")}</time>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="tc-activity-empty">등록된 기록이 없습니다.</p>
+            )}
+          </section>
 
           <div className="tc-modal-actions">
             <button

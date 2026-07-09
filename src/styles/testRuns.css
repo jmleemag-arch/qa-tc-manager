@@ -1331,6 +1331,10 @@
   gap: 20px;
 }
 
+.tr-bottom-grid-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .tr-bottom-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;

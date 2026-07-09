@@ -14,10 +14,16 @@ import {
   IS_WORKING_FILTER_ALL,
   MENU_SELECT_ALERT,
   SIDEBAR_MENUS,
+  TC_ASSIGNEE_OPTIONS,
   TC_MENUS,
   TOTAL_MENU,
   VERSION_FILTER_ALL,
 } from "../constants/testCaseConstants";
+import {
+  createNotification,
+  getUserDisplayName,
+  resolveMentionedUsers,
+} from "../../notifications/notificationUtils";
 import { downloadTestCasesExcel } from "../utils/excelUtils";
 import {
   assignDisplayIds,
@@ -47,7 +53,18 @@ function readStorageValue(key, fallbackValue) {
   }
 }
 
-function TestCaseListPage({ loginUser, onLogout, activeMenu, onMenuChange }) {
+function TestCaseListPage({
+  loginUser,
+  onLogout,
+  activeMenu,
+  onMenuChange,
+  notifications,
+  onNotificationClick,
+  onMarkAllNotificationsRead,
+  notificationTarget,
+  onNotificationTargetHandled,
+  onAddNotifications,
+}) {
   const [testCases, setTestCases] = useState(() =>
     readStorageValue(TEST_CASE_STORAGE_KEY, initialTestCases)
   );
@@ -140,6 +157,32 @@ function TestCaseListPage({ loginUser, onLogout, activeMenu, onMenuChange }) {
       ? "전체 버전"
       : selectedVersion?.name ?? "선택한 버전";
 
+  const getAssigneeName = (assigneeId) =>
+    TC_ASSIGNEE_OPTIONS.find((option) => option.id === assigneeId)?.name ??
+    assigneeId;
+
+  const createTestCaseTarget = (testCase) => ({
+    type: "testcase",
+    uid: testCase.uid,
+  });
+
+  useEffect(() => {
+    if (notificationTarget?.type !== "testcase") {
+      return;
+    }
+
+    const targetCase = assignDisplayIds(testCases).find(
+      (testCase) => testCase.uid === notificationTarget.uid
+    );
+
+    if (targetCase) {
+      setSelectedMenu(targetCase.menu ?? TOTAL_MENU);
+      setEditingTestCase(targetCase);
+    }
+
+    onNotificationTargetHandled?.();
+  }, [notificationTarget, onNotificationTargetHandled, testCases]);
+
   const visibleUids = filteredTestCases.map((testCase) => testCase.uid);
   const isAllSelected =
     visibleUids.length > 0 &&
@@ -201,10 +244,116 @@ function TestCaseListPage({ loginUser, onLogout, activeMenu, onMenuChange }) {
       return;
     }
 
+    const previousTestCase = testCases.find(
+      (testCase) => testCase.uid === editingTestCase.uid
+    );
+    const displayId = editingTestCase.displayId ?? editingTestCase.id;
+    const nextNotifications = [];
+
+    if (
+      previousTestCase &&
+      previousTestCase.assigneeId !== formData.assigneeId &&
+      formData.assigneeId
+    ) {
+      if (formData.assigneeId !== loginUser) {
+        nextNotifications.push(
+          createNotification({
+            type: "assignee",
+            title: "[담당자 지정]",
+            message: `${displayId} 담당자로 지정되었습니다.`,
+            recipientId: formData.assigneeId,
+            recipientName: getAssigneeName(formData.assigneeId),
+            target: createTestCaseTarget(editingTestCase),
+          })
+        );
+      }
+    }
+
+    if (
+      previousTestCase &&
+      (previousTestCase.tcStatus ?? "Ready") !== formData.tcStatus
+    ) {
+      if (formData.assigneeId && formData.assigneeId !== loginUser) {
+        nextNotifications.push(
+          createNotification({
+            type: "status",
+            title: "[상태 변경]",
+            message: `${displayId} 상태가 ${
+              previousTestCase.tcStatus ?? "Ready"
+            } → ${formData.tcStatus} 으로 변경되었습니다.`,
+            recipientId: formData.assigneeId,
+            recipientName: getAssigneeName(formData.assigneeId),
+            target: createTestCaseTarget(editingTestCase),
+          })
+        );
+      }
+    }
+
     setTestCases((prev) =>
       updateTestCase(prev, editingTestCase.uid, formData)
     );
+    if (nextNotifications.length > 0) {
+      onAddNotifications?.(nextNotifications);
+    }
     setEditingTestCase(null);
+  };
+
+  const handleAddComment = (testCase, text) => {
+    const actorName = getUserDisplayName(loginUser);
+    const displayId = testCase.displayId ?? testCase.id;
+    const logItem = {
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text,
+      authorName: actorName,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTestCases((prev) =>
+      prev.map((item) =>
+        item.uid === testCase.uid
+          ? { ...item, activityLogs: [logItem, ...(item.activityLogs ?? [])] }
+          : item
+      )
+    );
+    setEditingTestCase((prev) =>
+      prev && prev.uid === testCase.uid
+        ? { ...prev, activityLogs: [logItem, ...(prev.activityLogs ?? [])] }
+        : prev
+    );
+
+    const mentionNotifications = resolveMentionedUsers(text)
+      .filter((user) => user.id !== loginUser)
+      .map((user) =>
+        createNotification({
+          type: "mention",
+          title: "[멘션]",
+          message: `${actorName}님이 ${displayId}에서 ${testCase.checkItem} 확인을 요청했습니다.`,
+          recipientId: user.id,
+          recipientName: user.name,
+          target: createTestCaseTarget(testCase),
+        })
+      );
+
+    if (mentionNotifications.length > 0) {
+      onAddNotifications?.(mentionNotifications);
+    }
+  };
+
+  const handleRequestRetest = (testCase) => {
+    const displayId = testCase.displayId ?? testCase.id;
+
+    if (testCase.assigneeId && testCase.assigneeId !== loginUser) {
+      onAddNotifications?.(
+        createNotification({
+          type: "retest",
+          title: "[재검증 요청]",
+          message: `${displayId} 재검증이 요청되었습니다.`,
+          recipientId: testCase.assigneeId,
+          recipientName: getAssigneeName(testCase.assigneeId),
+          target: createTestCaseTarget(testCase),
+        })
+      );
+    }
   };
 
   const handleDeleteByUids = (uids) => {
@@ -471,6 +620,9 @@ function TestCaseListPage({ loginUser, onLogout, activeMenu, onMenuChange }) {
       onLogout={onLogout}
       activeMenu={activeMenu}
       onMenuChange={onMenuChange}
+      notifications={notifications}
+      onNotificationClick={onNotificationClick}
+      onMarkAllNotificationsRead={onMarkAllNotificationsRead}
       pageTitle="테스트 케이스"
     >
       <div className="tc-content-card">
@@ -530,6 +682,8 @@ function TestCaseListPage({ loginUser, onLogout, activeMenu, onMenuChange }) {
         onClose={() => setEditingTestCase(null)}
         onSave={handleSaveEdit}
         onDelete={handleDeleteFromModal}
+        onAddComment={handleAddComment}
+        onRequestRetest={handleRequestRetest}
       />
 
       <TestCaseVersionManager

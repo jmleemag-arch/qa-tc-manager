@@ -6,6 +6,9 @@ function PlaceholderPage({
   activeMenu,
   onMenuChange,
   pageTitle,
+  notifications,
+  onNotificationClick,
+  onMarkAllNotificationsRead,
   title = "준비 중",
 }) {
   const displayTitle = pageTitle || title;
@@ -17,6 +20,9 @@ function PlaceholderPage({
       activeMenu={activeMenu}
       onMenuChange={onMenuChange}
       pageTitle={displayTitle}
+      notifications={notifications}
+      onNotificationClick={onNotificationClick}
+      onMarkAllNotificationsRead={onMarkAllNotificationsRead}
     >
       <div className="placeholder-page">
         <div className="placeholder-card">

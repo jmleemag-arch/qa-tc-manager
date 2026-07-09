@@ -60,6 +60,9 @@ export function createEmptyTestCase(menu, uid) {
     isWorking: "O",
     note: "",
     versions: [],
+    assigneeId: "",
+    tcStatus: "Ready",
+    activityLogs: [],
   };
 }
 
@@ -78,6 +81,9 @@ export function updateTestCase(testCases, uid, formData) {
       isWorking: formData.isWorking,
       note: formData.note.trim(),
       versions: testCase.versions ?? [],
+      assigneeId: formData.assigneeId,
+      tcStatus: formData.tcStatus,
+      activityLogs: testCase.activityLogs ?? [],
     };
   });
 }
@@ -127,5 +133,7 @@ export function getEditableFormData(testCase) {
     checkResult: testCase.checkResult,
     isWorking: testCase.isWorking,
     note: testCase.note,
+    assigneeId: testCase.assigneeId ?? "",
+    tcStatus: testCase.tcStatus ?? "Ready",
   };
 }

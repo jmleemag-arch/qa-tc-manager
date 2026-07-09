@@ -7,6 +7,9 @@ function MainLayout({
   activeMenu,
   onMenuChange,
   pageTitle,
+  notifications,
+  onNotificationClick,
+  onMarkAllNotificationsRead,
   children,
 }) {
   return (
@@ -18,7 +21,13 @@ function MainLayout({
       />
 
       <div className="app-main">
-        <Header pageTitle={pageTitle} onLogout={onLogout} />
+        <Header
+          pageTitle={pageTitle}
+          notifications={notifications}
+          onNotificationClick={onNotificationClick}
+          onMarkAllNotificationsRead={onMarkAllNotificationsRead}
+          onLogout={onLogout}
+        />
         <main className="app-content">{children}</main>
       </div>
     </div>

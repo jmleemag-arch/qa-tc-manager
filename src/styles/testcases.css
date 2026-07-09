@@ -806,6 +806,98 @@
   border-top: 1px solid #e8eef5;
 }
 
+.tc-notice-workflow {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.tc-notice-workflow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tc-notice-workflow h3 {
+  margin: 0;
+  color: #102a43;
+  font-size: 15px;
+}
+
+.tc-notice-workflow p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tc-comment-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.tc-comment-input-row textarea {
+  width: 100%;
+  min-height: 82px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.tc-comment-input-row textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.tc-activity-log-list {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tc-activity-log-list li {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 150px;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #e8eef5;
+  color: #334155;
+  font-size: 12px;
+}
+
+.tc-activity-log-list strong {
+  color: #1d4ed8;
+}
+
+.tc-activity-log-list span {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.tc-activity-log-list time {
+  color: #64748b;
+  text-align: right;
+}
+
+.tc-activity-empty {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .tc-modal-actions-right {
   display: flex;
   gap: 10px;

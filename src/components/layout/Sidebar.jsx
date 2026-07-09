@@ -1,6 +1,8 @@
 import { APP_SIDEBAR_MENUS } from "../../constants/appConstants";
+import { getUserDisplayName } from "../../features/notifications/notificationUtils";
 
 function Sidebar({ loginUser, activeMenu, onMenuChange }) {
+  const displayName = getUserDisplayName(loginUser);
   return (
     <aside className="app-sidebar">
       <div className="app-sidebar-top">
@@ -33,7 +35,7 @@ function Sidebar({ loginUser, activeMenu, onMenuChange }) {
           {loginUser.slice(0, 1).toUpperCase()}
         </div>
         <div>
-          <strong>QA Tester</strong>
+          <strong>{displayName}</strong>
           <span>{loginUser}</span>
         </div>
       </div>

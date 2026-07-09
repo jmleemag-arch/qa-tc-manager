@@ -22,6 +22,9 @@ function DashboardPage({
   activeMenu,
   onMenuChange,
   pageTitle,
+  notifications,
+  onNotificationClick,
+  onMarkAllNotificationsRead,
 }) {
   const handleMoveToTestRuns = () => {
     onMenuChange("테스트 런");
@@ -34,6 +37,9 @@ function DashboardPage({
       activeMenu={activeMenu}
       onMenuChange={onMenuChange}
       pageTitle={pageTitle}
+      notifications={notifications}
+      onNotificationClick={onNotificationClick}
+      onMarkAllNotificationsRead={onMarkAllNotificationsRead}
     >
       <DashboardSummaryCards summaryCards={summaryCards} />
 
