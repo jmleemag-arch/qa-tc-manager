@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LoginPage from "./features/auth/pages/LoginPage";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import DashboardPage from "./features/dashboard/pages/DashboardPage";
@@ -11,6 +11,71 @@ import { APP_SIDEBAR_MENUS, PAGE_TITLES } from "./constants/appConstants";
 const ACTIVE_MENU_DASHBOARD = APP_SIDEBAR_MENUS[0];
 const ACTIVE_MENU_TEST_CASES = APP_SIDEBAR_MENUS[1];
 const ACTIVE_MENU_TEST_RUNS = APP_SIDEBAR_MENUS[2];
+const ACTIVE_MENU_STORAGE_KEY = "qa-manager-active-menu";
+
+const MENU_SLUGS = [
+  "dashboard",
+  "testcases",
+  "testruns",
+  "defects",
+  "reports",
+  "settings",
+];
+
+function getMenuSlug(menu) {
+  const menuIndex = APP_SIDEBAR_MENUS.indexOf(menu);
+  return MENU_SLUGS[menuIndex] ?? MENU_SLUGS[0];
+}
+
+function getMenuFromSlug(slug) {
+  const menuIndex = MENU_SLUGS.indexOf(slug);
+  return APP_SIDEBAR_MENUS[menuIndex] ?? ACTIVE_MENU_DASHBOARD;
+}
+
+function parseHashRoute() {
+  const rawHash = window.location.hash.replace(/^#\/?/, "");
+  const [rawSlug, rawQuery = ""] = rawHash.split("?");
+  const slug = rawSlug || getMenuSlug(ACTIVE_MENU_DASHBOARD);
+
+  return {
+    activeMenu: getMenuFromSlug(slug),
+    routeParams: Object.fromEntries(new URLSearchParams(rawQuery).entries()),
+  };
+}
+
+function buildHashRoute(menu, params = {}) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      searchParams.set(key, value);
+    }
+  });
+
+  const queryString = searchParams.toString();
+
+  return `#/${getMenuSlug(menu)}${queryString ? `?${queryString}` : ""}`;
+}
+
+function getInitialRoute() {
+  if (window.location.hash) {
+    return parseHashRoute();
+  }
+
+  const storedMenu = window.localStorage.getItem(ACTIVE_MENU_STORAGE_KEY);
+
+  if (APP_SIDEBAR_MENUS.includes(storedMenu)) {
+    return {
+      activeMenu: storedMenu,
+      routeParams: {},
+    };
+  }
+
+  return {
+    activeMenu: ACTIVE_MENU_DASHBOARD,
+    routeParams: {},
+  };
+}
 
 function App() {
   const {
@@ -22,16 +87,78 @@ function App() {
     login,
     recordActivity,
   } = useIdleSession();
-  const [activeMenu, setActiveMenu] = useState(ACTIVE_MENU_DASHBOARD);
+  const [routeState, setRouteState] = useState(getInitialRoute);
+  const { activeMenu, routeParams } = routeState;
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setRouteState(parseHashRoute());
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+
+    if (!window.location.hash) {
+      window.history.replaceState(
+        null,
+        "",
+        buildHashRoute(activeMenu, routeParams)
+      );
+    }
+
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [activeMenu, routeParams]);
+
+  useEffect(() => {
+    window.localStorage.setItem(ACTIVE_MENU_STORAGE_KEY, activeMenu);
+  }, [activeMenu]);
+
+  const navigateTo = (menu, params = {}, options = {}) => {
+    const nextHash = buildHashRoute(menu, params);
+
+    if (options.replace) {
+      window.history.replaceState(null, "", nextHash);
+      setRouteState({ activeMenu: menu, routeParams: params });
+      return;
+    }
+
+    if (window.location.hash === nextHash) {
+      setRouteState({ activeMenu: menu, routeParams: params });
+      return;
+    }
+
+    window.location.hash = nextHash;
+  };
 
   const handleLogout = () => {
     logout();
-    setActiveMenu(ACTIVE_MENU_DASHBOARD);
+    navigateTo(ACTIVE_MENU_DASHBOARD, {}, { replace: true });
   };
 
   const handleMenuChange = (menu) => {
     recordActivity();
-    setActiveMenu(menu);
+    navigateTo(menu);
+  };
+
+  const handleRouteChange = (params, options = {}) => {
+    const nextParams = {
+      ...routeParams,
+      ...params,
+    };
+
+    Object.keys(nextParams).forEach((key) => {
+      if (
+        nextParams[key] === undefined ||
+        nextParams[key] === null ||
+        nextParams[key] === ""
+      ) {
+        delete nextParams[key];
+      }
+    });
+
+    recordActivity();
+    navigateTo(activeMenu, nextParams, options);
   };
 
   if (!isLoggedIn) {
@@ -43,6 +170,8 @@ function App() {
     onLogout: handleLogout,
     activeMenu,
     onMenuChange: handleMenuChange,
+    routeParams,
+    onRouteChange: handleRouteChange,
     pageTitle: PAGE_TITLES[activeMenu] || activeMenu,
     notifications: [],
     onNotificationClick: () => {},

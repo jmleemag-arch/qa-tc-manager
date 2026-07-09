@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
 import IssueProgressDashboard from "../components/IssueProgressDashboard";
 import TestRunCreateModal from "../components/TestRunCreateModal";
@@ -38,20 +38,22 @@ function TestRunListPage({
   notifications,
   onNotificationClick,
   onMarkAllNotificationsRead,
+  routeParams = {},
+  onRouteChange,
 }) {
   const [testRuns, setTestRuns] = useState(initialTestRuns);
-  const [selectedRunId, setSelectedRunId] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [menuFilter, setMenuFilter] = useState(MENU_FILTER_ALL);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchText, setSearchText] = useState("");
-  const [activeTab, setActiveTab] = useState("issue-progress");
   const [issueStartDate, setIssueStartDate] = useState("2026-05-21");
   const [issueEndDate, setIssueEndDate] = useState("2026-07-30");
   const [issueVersions, setIssueVersions] = useState(issueProgressVersions);
   const [focusedIssueVersion, setFocusedIssueVersion] = useState("");
+  const selectedRunId = routeParams.runId ?? null;
+  const activeTab = routeParams.tab === "run-list" ? "run-list" : "issue-progress";
 
   const selectedTestRun = useMemo(
     () => findTestRunById(testRuns, selectedRunId),
@@ -98,14 +100,22 @@ function TestRunListPage({
   };
 
   const handleViewRun = (runId) => {
-    setSelectedRunId(runId);
+    onRouteChange?.({ tab: "run-list", runId });
+  };
+
+  const handleBackToRunList = () => {
+    onRouteChange?.({ tab: "run-list", runId: null });
+  };
+
+  const handleTabChange = (tabName) => {
+    onRouteChange?.({ tab: tabName, runId: null });
   };
 
   const handleDeleteRun = (runId) => {
     setTestRuns((prev) => deleteTestRun(prev, runId));
 
     if (selectedRunId === runId) {
-      setSelectedRunId(null);
+      onRouteChange?.({ runId: null }, { replace: true });
     }
   };
 
@@ -186,7 +196,7 @@ function TestRunListPage({
       {selectedTestRun ? (
         <TestRunDetailPage
           testRun={selectedTestRun}
-          onBack={() => setSelectedRunId(null)}
+          onBack={handleBackToRunList}
           onResultChange={handleResultChange}
           onExcelDownload={handleDetailExcelDownload}
         />
@@ -199,14 +209,14 @@ function TestRunListPage({
                 <button
                   type="button"
                   className={activeTab === "issue-progress" ? "active" : ""}
-                  onClick={() => setActiveTab("issue-progress")}
+                  onClick={() => handleTabChange("issue-progress")}
                 >
                   이슈 진행 현황
                 </button>
                 <button
                   type="button"
                   className={activeTab === "run-list" ? "active" : ""}
-                  onClick={() => setActiveTab("run-list")}
+                  onClick={() => handleTabChange("run-list")}
                 >
                   테스트 런 목록
                 </button>

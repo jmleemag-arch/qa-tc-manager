@@ -74,6 +74,8 @@ function TestCaseListPage({
   notifications,
   onNotificationClick,
   onMarkAllNotificationsRead,
+  routeParams = {},
+  onRouteChange,
 }) {
   const [testCases, setTestCases] = useState(() =>
     normalizeTestCases(
@@ -85,19 +87,19 @@ function TestCaseListPage({
       readStorageValue(TEST_CASE_VERSION_STORAGE_KEY, INITIAL_TEST_CASE_VERSIONS)
     )
   );
-  const [activeVersionId, setActiveVersionId] = useState(null);
   const [customMenuPool, setCustomMenuPool] = useState(() =>
     readStorageValue(TEST_CASE_CUSTOM_MENU_POOL_KEY, [])
   );
-  const [selectedMenu, setSelectedMenu] = useState(TOTAL_MENU);
-  const [searchText, setSearchText] = useState("");
-  const [workingFilter, setWorkingFilter] = useState(IS_WORKING_FILTER_ALL);
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(true);
   const [selectedUids, setSelectedUids] = useState(new Set());
   const [dragUid, setDragUid] = useState(null);
   const [editingTestCase, setEditingTestCase] = useState(null);
   const [isVersionManagerOpen, setIsVersionManagerOpen] = useState(false);
   const isDraggingRef = useRef(false);
+  const activeVersionId = routeParams.version ?? null;
+  const requestedMenu = routeParams.menu ?? TOTAL_MENU;
+  const searchText = routeParams.q ?? "";
+  const workingFilter = routeParams.working ?? IS_WORKING_FILTER_ALL;
 
   const activeVersion = versions.find((version) => version.id === activeVersionId);
 
@@ -108,6 +110,10 @@ function TestCaseListPage({
 
     return activeVersion.menus ?? [...FIXED_VERSION_MENUS];
   }, [activeVersion]);
+
+  const selectedMenu = sidebarMenus.includes(requestedMenu)
+    ? requestedMenu
+    : TOTAL_MENU;
 
   const addableMenus = useMemo(
     () => [
@@ -151,12 +157,6 @@ function TestCaseListPage({
       JSON.stringify(customMenuPool)
     );
   }, [customMenuPool]);
-
-  useEffect(() => {
-    if (!sidebarMenus.includes(selectedMenu)) {
-      setSelectedMenu(TOTAL_MENU);
-    }
-  }, [selectedMenu, sidebarMenus]);
 
   const filteredTestCases = useMemo(
     () =>
@@ -227,14 +227,15 @@ function TestCaseListPage({
       filterTestCases(
         nextTestCases,
         selectedMenu,
-        searchText,
-        workingFilter,
+        "",
+        IS_WORKING_FILTER_ALL,
         versionContext
       )
     ).find((testCase) => testCase.uid === uid);
 
     setTestCases(nextTestCases);
     setEditingTestCase(createdCase);
+    onRouteChange?.({ q: null, working: null }, { replace: true });
   };
 
   const handleSaveEdit = (formData) => {
@@ -297,10 +298,32 @@ function TestCaseListPage({
     downloadTestCasesExcel(exportCases);
   };
 
-  const handleApplyVersion = (versionId) => {
-    setActiveVersionId(versionId);
-    setSelectedMenu(TOTAL_MENU);
+  const handleSelectMenu = (menu) => {
     setSelectedUids(new Set());
+    onRouteChange?.({ menu });
+  };
+
+  const handleSearchChange = (value) => {
+    onRouteChange?.({ q: value }, { replace: true });
+  };
+
+  const handleWorkingFilterChange = (value) => {
+    onRouteChange?.(
+      {
+        working: value === IS_WORKING_FILTER_ALL ? null : value,
+      },
+      { replace: true }
+    );
+  };
+
+  const handleApplyVersion = (versionId) => {
+    setSelectedUids(new Set());
+    onRouteChange?.({
+      version: versionId,
+      menu: TOTAL_MENU,
+      q: null,
+      working: null,
+    });
   };
 
   const handleAddVersion = ({ name, description }) => {
@@ -353,7 +376,7 @@ function TestCaseListPage({
     );
 
     if (activeVersionId === versionId) {
-      setActiveVersionId(null);
+      onRouteChange?.({ version: null, menu: TOTAL_MENU }, { replace: true });
     }
   };
 
@@ -393,7 +416,7 @@ function TestCaseListPage({
     );
 
     if (activeVersionId === versionId && selectedMenu === menuName) {
-      setSelectedMenu(TOTAL_MENU);
+      onRouteChange?.({ menu: TOTAL_MENU }, { replace: true });
     }
   };
 
@@ -511,7 +534,7 @@ function TestCaseListPage({
           <TestCaseFilter
             menus={sidebarMenus}
             selectedMenu={selectedMenu}
-            onSelectMenu={setSelectedMenu}
+            onSelectMenu={handleSelectMenu}
             isOpen={isSubMenuOpen}
             onToggle={() => setIsSubMenuOpen((prev) => !prev)}
           />
@@ -523,7 +546,7 @@ function TestCaseListPage({
           >
             <TestCaseToolbar
               searchText={searchText}
-              onSearchChange={setSearchText}
+              onSearchChange={handleSearchChange}
               onSearchSubmit={() => {}}
               resultCount={filteredTestCases.length}
               onAddClick={handleAddClick}
@@ -543,7 +566,7 @@ function TestCaseListPage({
               isAllSelected={isAllSelected}
               isIndeterminate={isIndeterminate}
               workingFilter={workingFilter}
-              onWorkingFilterChange={setWorkingFilter}
+              onWorkingFilterChange={handleWorkingFilterChange}
               onToggleSelect={handleToggleSelect}
               onToggleSelectAll={handleToggleSelectAll}
               onRowClick={handleRowClick}
