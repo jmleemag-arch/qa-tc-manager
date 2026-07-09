@@ -103,6 +103,7 @@ const DEFAULT_SETTINGS = {
       lastLogin: "2025-07-08 17:30",
     },
   ],
+  custom_menu_pool: [],
   system: {
     lastBackupAt: "",
     appVersion: "0.1.0",

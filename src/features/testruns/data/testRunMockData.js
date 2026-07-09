@@ -1,4 +1,4 @@
-import { TEST_RUN_STATUS } from "../constants/testRunConstants";
+import { TEST_RUN_STATUS } from "../constants/testRunConstants.js";
 
 export const testRuns = [
   {

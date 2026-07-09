@@ -8,6 +8,7 @@ import TestCaseListPage from "./features/testcases/pages/TestCaseListPage";
 import TestRunListPage from "./features/testruns/pages/TestRunListPage";
 import SessionExpiryModal from "./features/auth/components/SessionExpiryModal";
 import { useIdleSession } from "./features/auth/hooks/useIdleSession";
+import { useNotifications } from "./hooks/useNotifications";
 import { loadAppSettings } from "./features/settings/utils/settingsStorage";
 import { APP_SIDEBAR_MENUS, PAGE_TITLES } from "./constants/appConstants";
 
@@ -16,7 +17,6 @@ const ACTIVE_MENU_TEST_CASES = APP_SIDEBAR_MENUS[1];
 const ACTIVE_MENU_TEST_RUNS = APP_SIDEBAR_MENUS[2];
 const ACTIVE_MENU_DEFECTS = APP_SIDEBAR_MENUS[3];
 const ACTIVE_MENU_SETTINGS = APP_SIDEBAR_MENUS[5];
-const ACTIVE_MENU_STORAGE_KEY = "qa-manager-active-menu";
 
 const MENU_SLUGS = [
   "dashboard",
@@ -67,15 +67,6 @@ function getInitialRoute() {
     return parseHashRoute();
   }
 
-  const storedMenu = window.localStorage.getItem(ACTIVE_MENU_STORAGE_KEY);
-
-  if (APP_SIDEBAR_MENUS.includes(storedMenu)) {
-    return {
-      activeMenu: storedMenu,
-      routeParams: {},
-    };
-  }
-
   return {
     activeMenu: ACTIVE_MENU_DASHBOARD,
     routeParams: {},
@@ -94,6 +85,11 @@ function App() {
   } = useIdleSession();
   const [routeState, setRouteState] = useState(getInitialRoute);
   const { activeMenu, routeParams } = routeState;
+  const {
+    notifications,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
+  } = useNotifications(authSession?.userId);
 
   useEffect(() => {
     loadAppSettings();
@@ -118,10 +114,6 @@ function App() {
       window.removeEventListener("hashchange", handleHashChange);
     };
   }, [activeMenu, routeParams]);
-
-  useEffect(() => {
-    window.localStorage.setItem(ACTIVE_MENU_STORAGE_KEY, activeMenu);
-  }, [activeMenu]);
 
   const navigateTo = (menu, params = {}, options = {}) => {
     const nextHash = buildHashRoute(menu, params);
@@ -175,16 +167,20 @@ function App() {
   }
 
   const pageProps = {
-    loginUser: authSession.userId,
+    loginUser: authSession?.userName ?? authSession?.userId,
     onLogout: handleLogout,
     activeMenu,
     onMenuChange: handleMenuChange,
     routeParams,
     onRouteChange: handleRouteChange,
     pageTitle: PAGE_TITLES[activeMenu] || activeMenu,
-    notifications: [],
-    onNotificationClick: () => {},
-    onMarkAllNotificationsRead: () => {},
+    notifications,
+    onNotificationClick: (notification) => {
+      markNotificationRead(notification.id);
+    },
+    onMarkAllNotificationsRead: () => {
+      markAllNotificationsRead();
+    },
   };
 
   let pageContent;

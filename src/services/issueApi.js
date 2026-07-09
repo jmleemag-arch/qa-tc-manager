@@ -13,10 +13,24 @@ export const issueApi = {
     const suffix = query.toString() ? `?${query.toString()}` : "";
     return apiClient.get(`/api/v1/issues${suffix}`);
   },
+  getRounds: (params = {}) => {
+    const query = new URLSearchParams();
+
+    if (params.year) {
+      query.set("year", params.year);
+    }
+
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return apiClient.get(`/api/v1/issues/rounds${suffix}`);
+  },
   getWeeks: () => apiClient.get("/api/v1/issues/weeks"),
   getAssignees: () => apiClient.get("/api/v1/issues/assignees"),
+  getOverviewStats: () => apiClient.get("/api/v1/issues/overview-stats"),
+  getConfig: () => apiClient.get("/api/v1/issues/config"),
   getById: (id) => apiClient.get(`/api/v1/issues/${id}`),
   create: (payload) => apiClient.post("/api/v1/issues", payload),
+  retryRedmine: (id) =>
+    apiClient.post(`/api/v1/issues/${id}/retry-redmine`, {}),
   update: (id, payload) =>
     apiClient.request(`/api/v1/issues/${id}`, {
       method: "PATCH",

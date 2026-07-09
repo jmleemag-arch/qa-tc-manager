@@ -3,6 +3,12 @@ import { DEMO_USERS } from "../src/features/auth/constants/authConstants.js";
 import { issueProgressVersions } from "../src/features/defects/data/defectMockData.js";
 import { newRegisteredIssues } from "../src/features/defects/data/newIssueMockData.js";
 import {
+  getThursdayWeekMeta,
+  ISSUE_ROUND_STATUS,
+} from "../server/utils/issueRoundUtils.js";
+import { testCases as mockTestCases } from "../src/features/testcases/data/testCaseMockData.js";
+import { testRuns as mockTestRuns } from "../src/features/testruns/data/testRunMockData.js";
+import {
   APP_BUILD_LABEL,
   APP_VERSION,
   DEFAULT_APP_SETTINGS,
@@ -168,11 +174,13 @@ async function seedUsers() {
       where: { userId: user.id },
       create: {
         userId: user.id,
+        password: user.password,
         name: user.name,
         role: roleByUserId[user.id] ?? "tester",
         status: "active",
       },
       update: {
+        password: user.password,
         name: user.name,
         role: roleByUserId[user.id] ?? "tester",
         status: "active",
@@ -188,19 +196,181 @@ async function seedIssues() {
     const createdOn = new Date(`${issue.registeredAt}T00:00:00`);
     const weekStart = getWeekStartDate(issue.registeredAt);
     const weekEnd = getWeekEndDate(weekStart);
+    const roundMeta = getThursdayWeekMeta(createdOn);
 
     await prisma.issue.create({
       data: {
         redmineIssueId: issue.issueId.replace("#", ""),
         title: issue.title,
+        description: issue.title,
+        project: "qa-manager",
         menu: issue.menu,
+        priority: issue.severity,
         severity: issue.severity,
         assignee: issue.assignee,
+        redmineStatus: "등록완료",
+        redmineUrl: `https://redmine.example/issues/${issue.issueId.replace("#", "")}`,
         createdOn,
+        roundYear: roundMeta.year,
+        roundMonth: roundMeta.month,
+        roundWeek: roundMeta.weekOfMonth,
+        thursdayDate: roundMeta.thursdayDate,
         weekStart,
         weekEnd,
       },
     });
+  }
+}
+
+async function seedTestCases() {
+  const version = await prisma.version.findUnique({
+    where: { versionName: "26.1.0" },
+  });
+
+  if (!version) {
+    return;
+  }
+
+  await prisma.testCase.deleteMany();
+
+  for (const [index, testCase] of mockTestCases.entries()) {
+    await prisma.testCase.create({
+      data: {
+        versionId: version.id,
+        caseCode: testCase.id,
+        menu: testCase.menu,
+        submenu: testCase.subMenu,
+        checkItem: testCase.checkItem,
+        checkMethod: testCase.checkMethod,
+        expectedResult: testCase.checkResult,
+        actualResult: testCase.isWorking,
+        note: testCase.note,
+        sortOrder: index,
+      },
+    });
+  }
+}
+
+async function seedTestRuns() {
+  await prisma.testRun.deleteMany();
+
+  const defaultVersion = await prisma.version.findUnique({
+    where: { versionName: "26.1.0" },
+  });
+
+  if (!defaultVersion) {
+    return;
+  }
+
+  const testCases = await prisma.testCase.findMany({
+    where: { versionId: defaultVersion.id },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
+
+  for (const run of mockTestRuns) {
+    const [datePart, timePart = "00:00"] = String(run.createdAt).split(" ");
+    const createdAt = new Date(`${datePart}T${timePart}:00`);
+
+    const menuTestCases = testCases.filter(
+      (testCase) =>
+        run.targetMenu === "전체" || testCase.menu === run.targetMenu
+    );
+    const selectedCases = menuTestCases.slice(0, run.totalCount || 0);
+
+    await prisma.testRun.create({
+      data: {
+        versionId: defaultVersion.id,
+        runName: run.runName,
+        targetMenu: run.targetMenu,
+        status: run.status,
+        createdAt,
+        startedAt: createdAt,
+        completedAt:
+          run.status === "완료" || run.status === "실패" ? createdAt : null,
+        items:
+          selectedCases.length > 0
+            ? {
+                create: selectedCases.map((testCase, index) => {
+                  let result = "NT";
+
+                  if (index < run.passCount) {
+                    result = "O";
+                  } else if (index < run.passCount + run.failCount) {
+                    result = "X";
+                  } else if (
+                    index <
+                    run.passCount + run.failCount + run.blockCount
+                  ) {
+                    result = "BLOCK";
+                  }
+
+                  return {
+                    testCaseId: testCase.id,
+                    result,
+                    executedAt: result === "NT" ? null : createdAt,
+                  };
+                }),
+              }
+            : undefined,
+      },
+    });
+  }
+}
+
+async function seedIssueProgressRounds() {
+  await prisma.issueProgressRound.deleteMany();
+
+  for (const versionData of issueProgressVersions) {
+    const version = await prisma.version.findUnique({
+      where: { versionName: versionData.version },
+      select: { id: true },
+    });
+
+    if (!version) {
+      continue;
+    }
+
+    for (const row of versionData.rows ?? []) {
+      const snapshotDate = new Date(`${row.dateValue}T00:00:00`);
+      const meta = getThursdayWeekMeta(snapshotDate);
+      const hasData =
+        row.total !== null &&
+        row.inProgress !== null &&
+        row.newCount !== null &&
+        (row.total > 0 || row.inProgress > 0 || row.newCount > 0);
+
+      await prisma.issueProgressRound.upsert({
+        where: {
+          versionId_year_month_weekOfMonth: {
+            versionId: version.id,
+            year: meta.year,
+            month: meta.month,
+            weekOfMonth: meta.weekOfMonth,
+          },
+        },
+        create: {
+          versionId: version.id,
+          year: meta.year,
+          month: meta.month,
+          weekOfMonth: meta.weekOfMonth,
+          thursdayDate: meta.thursdayDate,
+          total: row.total,
+          inProgress: row.inProgress,
+          newCount: row.newCount,
+          status: hasData
+            ? ISSUE_ROUND_STATUS.COMPLETED
+            : ISSUE_ROUND_STATUS.NOT_STARTED,
+        },
+        update: {
+          total: row.total,
+          inProgress: row.inProgress,
+          newCount: row.newCount,
+          status: hasData
+            ? ISSUE_ROUND_STATUS.COMPLETED
+            : ISSUE_ROUND_STATUS.NOT_STARTED,
+        },
+      });
+    }
   }
 }
 
@@ -221,11 +391,33 @@ async function seedAppSettings() {
   }
 }
 
+async function seedNotifications() {
+  await prisma.notification.deleteMany();
+
+  const users = await prisma.user.findMany();
+
+  for (const user of users) {
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: "issue_registered",
+        message: "QA Manager DB 기반 알림이 활성화되었습니다.",
+        targetType: "system",
+        isRead: false,
+      },
+    });
+  }
+}
+
 async function main() {
   await seedAppSettings();
   await seedUsers();
   await seedVersions();
+  await seedTestCases();
+  await seedTestRuns();
+  await seedIssueProgressRounds();
   await seedIssues();
+  await seedNotifications();
 
   console.log("Seed completed.");
 }

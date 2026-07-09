@@ -1,0 +1,50 @@
+---
+description: All feature data must persist to the database (SQLite/PostgreSQL), not localStorage or runtime mock data.
+alwaysApply: true
+---
+
+# DB-First Data Persistence
+
+All new features in QA Manager must use the database as the single source of truth.
+
+## Rules
+
+1. **No localStorage for business data** — Do not store versions, test cases, test runs, defects, settings, or notifications in `localStorage`/`sessionStorage`.
+2. **No runtime mock data** — Do not import `*MockData.js` in pages, hooks, or components. Mock files are allowed only in `prisma/seed.js` for initial DB seeding.
+3. **CRUD via API** — Every create/update/delete must go through Express API routes and Prisma.
+4. **Survive refresh** — Data must remain after browser refresh and app restart.
+5. **Redmine integration** — Always save to QA Manager DB first, then sync to Redmine. Store `redmineIssueId`, `redmineUrl`, and sync status in DB.
+
+## Architecture Pattern
+
+```
+UI → hook (useXxx) → service (xxxApi.js) → server/routes → server/services → Prisma → DB
+```
+
+## Allowed Client Storage
+
+- Auth session token in `localStorage` (security session only, not business data)
+- Hash-based routing for navigation (no menu persistence in localStorage)
+- In-memory UI state: filters, modals, pagination, selection
+
+## When Adding a Feature
+
+1. Define or extend Prisma model in `prisma/schema.prisma`
+2. Add migration under `prisma/migrations/`
+3. Implement `server/services/` + `server/routes/`
+4. Add `src/services/xxxApi.js` + `src/hooks/useXxx.js`
+5. Wire page/components to the hook
+6. Add seed data in `prisma/seed.js` if needed
+
+## Existing DB-Backed Modules
+
+| Module | API | Prisma Model |
+|--------|-----|--------------|
+| Versions | `/api/v1/versions` | `Version`, `Submenu` |
+| Test cases | `/api/v1/test-cases` | `TestCase` |
+| Test runs | `/api/v1/test-runs` | `TestRun`, `TestRunItem` |
+| Defects | `/api/v1/issues`, `/api/v1/issue-progress` | `Issue`, `IssueProgressRound` |
+| Settings | `/api/v1/settings` | `AppSetting` |
+| Notifications | `/api/v1/notifications` | `Notification` |
+| Dashboard | `/api/v1/dashboard` | Aggregated from above |
+| Auth | `/api/v1/auth` | `User` |

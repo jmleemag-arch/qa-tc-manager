@@ -4,12 +4,15 @@ import {
   NEW_ISSUE_PAGE_SIZE_OPTIONS,
 } from "../constants/defectConstants";
 import { useNewIssues } from "../../../hooks/useNewIssues";
+import { downloadNewIssuesExcel } from "../utils/newIssueExcelUtils";
+import NewIssueCreateModal from "./NewIssueCreateModal";
 import NewIssueTable from "./NewIssueTable";
 import NewIssueToolbar from "./NewIssueToolbar";
-import WeekSelector from "./WeekSelector";
+import RoundSelector from "./RoundSelector";
 
 function NewRegisteredIssuesSection() {
-  const [weekAnchorDate, setWeekAnchorDate] = useState("");
+  const [selectedRound, setSelectedRound] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState(ASSIGNEE_FILTER_ALL);
   const [page, setPage] = useState(1);
@@ -17,14 +20,17 @@ function NewRegisteredIssuesSection() {
 
   const {
     issues,
-    weeksWithData,
+    rounds,
     assigneeOptions,
     pagination,
     loading,
     error,
-    defaultWeekAnchor,
+    defaultRound,
+    createIssue,
+    retryRedmine,
+    fetchAllIssuesForRound,
   } = useNewIssues({
-    weekAnchorDate,
+    selectedRound,
     searchText,
     assigneeFilter,
     page,
@@ -32,19 +38,14 @@ function NewRegisteredIssuesSection() {
   });
 
   useEffect(() => {
-    if (!weekAnchorDate && defaultWeekAnchor) {
-      setWeekAnchorDate(defaultWeekAnchor);
+    if (!selectedRound && defaultRound?.roundKey) {
+      setSelectedRound(defaultRound);
     }
-  }, [defaultWeekAnchor, weekAnchorDate]);
+  }, [defaultRound, selectedRound]);
 
   useEffect(() => {
     setPage(1);
-  }, [weekAnchorDate, searchText, assigneeFilter, pageSize]);
-
-  const weekIssues = useMemo(
-    () => weeksWithData.map((weekStart) => ({ registeredAt: weekStart })),
-    [weeksWithData]
-  );
+  }, [selectedRound, searchText, assigneeFilter, pageSize]);
 
   const toolbarAssigneeOptions = useMemo(
     () => [ASSIGNEE_FILTER_ALL, ...assigneeOptions],
@@ -61,6 +62,34 @@ function NewRegisteredIssuesSection() {
     return numbers;
   }, [pagination.totalPages]);
 
+  const handleCreateIssue = async (payload) => {
+    return createIssue(payload);
+  };
+
+  const handleRetryRedmine = async (issueId) => {
+    try {
+      await retryRedmine(issueId);
+    } catch (retryError) {
+      console.error(retryError);
+      window.alert("Redmine 재등록에 실패했습니다.");
+    }
+  };
+
+  const handleExcelDownload = async () => {
+    try {
+      const allIssues = await fetchAllIssuesForRound();
+      downloadNewIssuesExcel(
+        allIssues,
+        selectedRound
+          ? `${selectedRound.year}년_${selectedRound.roundLabel}`
+          : "new_issues"
+      );
+    } catch (downloadError) {
+      console.error(downloadError);
+      window.alert("엑셀 다운로드에 실패했습니다.");
+    }
+  };
+
   return (
     <section className="df-new-issues-section">
       <div className="df-page-header">
@@ -68,17 +97,24 @@ function NewRegisteredIssuesSection() {
           <p className="df-breadcrumb">홈 &gt; 결함 관리 &gt; 신규 등록 이슈</p>
           <h2>신규 등록 이슈</h2>
           <p className="df-page-description">
-            주차별로 등록된 신규 이슈 목록을 확인할 수 있습니다.
+            매주 목요일 기준 주차 회차별 신규 이슈를 확인하고 Redmine에
+            등록합니다.
           </p>
         </div>
+        <button
+          type="button"
+          className="df-create-issue-btn"
+          onClick={() => setIsCreateModalOpen(true)}
+        >
+          + 신규 이슈 등록
+        </button>
       </div>
 
-      {weekAnchorDate ? (
-        <WeekSelector
-          weekAnchorDate={weekAnchorDate}
-          weeksWithData={weeksWithData}
-          issues={weekIssues}
-          onWeekChange={setWeekAnchorDate}
+      {selectedRound ? (
+        <RoundSelector
+          rounds={rounds}
+          selectedRound={selectedRound}
+          onRoundChange={setSelectedRound}
         />
       ) : null}
 
@@ -93,6 +129,7 @@ function NewRegisteredIssuesSection() {
           assigneeOptions={toolbarAssigneeOptions}
           onSearchChange={setSearchText}
           onAssigneeFilterChange={setAssigneeFilter}
+          onExcelDownload={handleExcelDownload}
         />
 
         {loading ? (
@@ -101,6 +138,7 @@ function NewRegisteredIssuesSection() {
           <NewIssueTable
             issues={issues}
             pageOffset={(pagination.page - 1) * pageSize}
+            onRetryRedmine={handleRetryRedmine}
           />
         )}
 
@@ -156,6 +194,12 @@ function NewRegisteredIssuesSection() {
           </label>
         </div>
       </div>
+
+      <NewIssueCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreateIssue}
+      />
     </section>
   );
 }

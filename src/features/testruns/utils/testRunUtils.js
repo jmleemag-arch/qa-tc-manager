@@ -47,6 +47,20 @@ function parseCreatedDate(createdAt) {
   return createdAt.split(" ")[0];
 }
 
+export function sortTestRunsByCreatedAt(testRuns = []) {
+  const runs = Array.isArray(testRuns) ? testRuns : [];
+
+  return [...runs].sort((left, right) => {
+    const createdAtDiff = right.createdAt.localeCompare(left.createdAt);
+
+    if (createdAtDiff !== 0) {
+      return createdAtDiff;
+    }
+
+    return (right.dbId ?? 0) - (left.dbId ?? 0);
+  });
+}
+
 export function filterTestRuns(
   testRuns = [],
   {
@@ -60,30 +74,32 @@ export function filterTestRuns(
   const normalizedSearch = searchText.trim().toLowerCase();
   const runs = Array.isArray(testRuns) ? testRuns : [];
 
-  return runs.filter((run) => {
-    const isStatusMatched =
-      statusFilter === STATUS_FILTER_ALL || run.status === statusFilter;
+  return sortTestRunsByCreatedAt(
+    runs.filter((run) => {
+      const isStatusMatched =
+        statusFilter === STATUS_FILTER_ALL || run.status === statusFilter;
 
-    const isMenuMatched =
-      menuFilter === MENU_FILTER_ALL || run.targetMenu === menuFilter;
+      const isMenuMatched =
+        menuFilter === MENU_FILTER_ALL || run.targetMenu === menuFilter;
 
-    const isSearchMatched =
-      !normalizedSearch ||
-      run.runId.toLowerCase().includes(normalizedSearch) ||
-      run.runName.toLowerCase().includes(normalizedSearch);
+      const isSearchMatched =
+        !normalizedSearch ||
+        run.runId.toLowerCase().includes(normalizedSearch) ||
+        run.runName.toLowerCase().includes(normalizedSearch);
 
-    const runDate = parseCreatedDate(run.createdAt);
-    const isStartDateMatched = !startDate || runDate >= startDate;
-    const isEndDateMatched = !endDate || runDate <= endDate;
+      const runDate = parseCreatedDate(run.createdAt);
+      const isStartDateMatched = !startDate || runDate >= startDate;
+      const isEndDateMatched = !endDate || runDate <= endDate;
 
-    return (
-      isStatusMatched &&
-      isMenuMatched &&
-      isSearchMatched &&
-      isStartDateMatched &&
-      isEndDateMatched
-    );
-  });
+      return (
+        isStatusMatched &&
+        isMenuMatched &&
+        isSearchMatched &&
+        isStartDateMatched &&
+        isEndDateMatched
+      );
+    })
+  );
 }
 
 export function getSummaryStats(testRuns = []) {
@@ -121,11 +137,7 @@ export function getSummaryStats(testRuns = []) {
 }
 
 export function getRecentTestRuns(testRuns = [], limit = 5) {
-  const runs = Array.isArray(testRuns) ? testRuns : [];
-
-  return [...runs]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, limit);
+  return sortTestRunsByCreatedAt(testRuns).slice(0, limit);
 }
 
 export function getStatusDistribution(testRuns = []) {
@@ -187,30 +199,19 @@ export function formatRunCreatedAt(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function createTestRun({
+export function buildTestRunCreatePayload({
   runName,
   targetMenu,
   targetVersion,
   selectedTestCases,
-  existingRuns,
 }) {
-  const runTestCases = mapTestCasesToRunTestCases(selectedTestCases);
-  const totalCount = runTestCases.length;
-
   return {
-    runId: generateRunId(existingRuns),
     runName: runName.trim(),
     targetMenu,
     targetVersion,
-    totalCount,
-    completedCount: 0,
-    passCount: 0,
-    failCount: 0,
-    blockCount: 0,
-    ntCount: totalCount,
-    status: TEST_RUN_STATUS.WAITING,
-    createdAt: formatRunCreatedAt(),
-    testCases: runTestCases,
+    testCaseIds: selectedTestCases
+      .map((testCase) => Number(testCase.uid))
+      .filter((id) => Number.isFinite(id)),
   };
 }
 
@@ -348,6 +349,13 @@ export function deleteTestRun(testRuns, runId) {
 
 export function findTestRunById(testRuns, runId) {
   const runs = Array.isArray(testRuns) ? testRuns : [];
+  const normalizedId = String(runId ?? "");
 
-  return runs.find((run) => run.runId === runId) ?? null;
+  return (
+    runs.find(
+      (run) =>
+        String(run.runId) === normalizedId ||
+        String(run.dbId) === normalizedId
+    ) ?? null
+  );
 }

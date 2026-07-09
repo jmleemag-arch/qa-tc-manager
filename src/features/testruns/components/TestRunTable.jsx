@@ -59,7 +59,7 @@ function TestRunTable({
             {testRuns.length > 0 ? (
               testRuns.map((testRun) => (
                 <TestRunRow
-                  key={testRun.runId}
+                  key={testRun.dbId ?? testRun.runId}
                   testRun={testRun}
                   onView={onViewRun}
                   onDelete={onDeleteRun}

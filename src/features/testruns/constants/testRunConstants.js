@@ -47,7 +47,6 @@ export const ACTIVE_TEST_RUN_MENU = "테스트 런";
 export const TARGET_MENU_PLACEHOLDER = "대상 메뉴를 선택하세요";
 
 export const TARGET_MENU_OPTIONS = [
-  "접속페이지",
   "대시보드",
   "장애 현황",
   "플로우 맵",

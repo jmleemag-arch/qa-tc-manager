@@ -18,6 +18,10 @@ export const AUTH_SESSION_ACTIVITY_EVENT = "qa-session-activity";
 /** @deprecated Use AUTH_SESSION_IDLE_TIMEOUT_MS */
 export const AUTH_SESSION_DURATION_MS = AUTH_SESSION_IDLE_TIMEOUT_MS;
 
-export function getUserDisplayName(userId) {
-  return DEMO_USERS.find((user) => user.id === userId)?.name ?? userId;
+export function getUserDisplayName(userId, session = null) {
+  if (session?.userName) {
+    return session.userName;
+  }
+
+  return userId;
 }

@@ -171,6 +171,18 @@
   position: relative;
 }
 
+.app-notification-bell {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+  color: #475569;
+}
+
+.app-notification-btn:hover .app-notification-bell {
+  color: #4338ca;
+}
+
 .app-notification-count {
   position: absolute;
   top: -6px;

@@ -36,9 +36,11 @@ export function clearAuthSession() {
   window.localStorage.removeItem(AUTH_SESSION_KEY);
 }
 
-export function createAuthSession(userId) {
+export function createAuthSession(user) {
   const session = {
-    userId,
+    userId: user.userId,
+    userName: user.name ?? user.userId,
+    role: user.role ?? "tester",
     expiresAt: Date.now() + getSessionIdleTimeoutMs(),
     lastActivityAt: Date.now(),
   };

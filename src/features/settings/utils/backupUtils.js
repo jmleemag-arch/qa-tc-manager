@@ -1,19 +1,13 @@
-import { BACKUP_STORAGE_KEYS } from "../constants/settingsConstants";
+import settingsApi from "../../../services/settingsApi.js";
 
-export function exportAppBackup() {
+export async function exportAppBackup() {
+  const response = await settingsApi.getAll();
   const payload = {
     exportedAt: new Date().toISOString(),
-    version: 1,
-    data: {},
+    version: 2,
+    source: "database",
+    data: response.data ?? {},
   };
-
-  BACKUP_STORAGE_KEYS.forEach((key) => {
-    const value = window.localStorage.getItem(key);
-
-    if (value !== null) {
-      payload.data[key] = value;
-    }
-  });
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
@@ -30,11 +24,11 @@ export function exportAppBackup() {
   return payload.exportedAt;
 }
 
-export function importAppBackup(file) {
+export async function importAppBackup(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const payload = JSON.parse(String(reader.result));
 
@@ -43,12 +37,7 @@ export function importAppBackup(file) {
           return;
         }
 
-        Object.entries(payload.data).forEach(([key, value]) => {
-          if (BACKUP_STORAGE_KEYS.includes(key) && typeof value === "string") {
-            window.localStorage.setItem(key, value);
-          }
-        });
-
+        await settingsApi.updateAll(payload.data);
         resolve(payload.exportedAt ?? new Date().toISOString());
       } catch {
         reject(new Error("invalid-backup"));
@@ -75,18 +64,5 @@ export function formatBackupTimestamp(isoValue) {
 }
 
 export function estimateStorageUsageKb() {
-  let totalBytes = 0;
-
-  for (let index = 0; index < window.localStorage.length; index += 1) {
-    const key = window.localStorage.key(index);
-
-    if (!key) {
-      continue;
-    }
-
-    const value = window.localStorage.getItem(key) ?? "";
-    totalBytes += key.length + value.length;
-  }
-
-  return Math.max(1, Math.round(totalBytes / 1024));
+  return 0;
 }

@@ -23,7 +23,7 @@ function TestRunRow({ testRun, onView, onDelete }) {
     const confirmed = window.confirm(DELETE_TEST_RUN_CONFIRM);
 
     if (confirmed) {
-      onDelete(testRun.runId);
+      onDelete(testRun.dbId);
     }
   };
 

@@ -1,19 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ASSIGNEE_FILTER_ALL } from "../features/defects/constants/defectConstants.js";
-import {
-  getDefaultWeekAnchor,
-  getWeekRange,
-} from "../features/defects/utils/newIssueUtils.js";
 import issueApi from "../services/issueApi.js";
 
 export function useNewIssues({
-  weekAnchorDate,
+  selectedRound,
   searchText = "",
   assigneeFilter = ASSIGNEE_FILTER_ALL,
   page = 1,
   pageSize = 20,
 } = {}) {
-  const [weeksWithData, setWeeksWithData] = useState([]);
+  const [rounds, setRounds] = useState([]);
   const [assigneeOptions, setAssigneeOptions] = useState([]);
   const [issues, setIssues] = useState([]);
   const [pagination, setPagination] = useState({
@@ -25,25 +21,21 @@ export function useNewIssues({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const weekRange = useMemo(
-    () => (weekAnchorDate ? getWeekRange(weekAnchorDate) : null),
-    [weekAnchorDate]
-  );
+  const selectedYear = selectedRound?.year ?? new Date().getFullYear();
 
   const refreshMeta = useCallback(async () => {
-    const [weeksResponse, assigneesResponse] = await Promise.all([
-      issueApi.getWeeks(),
+    const [roundsResponse, assigneesResponse] = await Promise.all([
+      issueApi.getRounds({ year: selectedYear }),
       issueApi.getAssignees(),
     ]);
 
-    const weeks = (weeksResponse.data ?? []).map((week) => week.weekStart);
-    setWeeksWithData(weeks);
+    setRounds(roundsResponse.data ?? []);
     setAssigneeOptions(assigneesResponse.data ?? []);
-    return weeks;
-  }, []);
+    return roundsResponse.data ?? [];
+  }, [selectedYear]);
 
   const refreshIssues = useCallback(async () => {
-    if (!weekRange) {
+    if (!selectedRound) {
       return;
     }
 
@@ -51,8 +43,9 @@ export function useNewIssues({
 
     try {
       const response = await issueApi.list({
-        weekStart: weekRange.startDate,
-        weekEnd: weekRange.endDate,
+        roundYear: selectedRound.year,
+        roundMonth: selectedRound.month,
+        roundWeek: selectedRound.weekOfMonth,
         search: searchText,
         assignee: assigneeFilter,
         page,
@@ -74,7 +67,25 @@ export function useNewIssues({
     } finally {
       setLoading(false);
     }
-  }, [assigneeFilter, page, pageSize, searchText, weekRange]);
+  }, [assigneeFilter, page, pageSize, searchText, selectedRound]);
+
+  const fetchAllIssuesForRound = useCallback(async () => {
+    if (!selectedRound) {
+      return [];
+    }
+
+    const response = await issueApi.list({
+      roundYear: selectedRound.year,
+      roundMonth: selectedRound.month,
+      roundWeek: selectedRound.weekOfMonth,
+      search: searchText,
+      assignee: assigneeFilter,
+      page: 1,
+      pageSize: 10000,
+    });
+
+    return response.data?.items ?? [];
+  }, [assigneeFilter, searchText, selectedRound]);
 
   useEffect(() => {
     refreshMeta().catch((nextError) => {
@@ -86,23 +97,55 @@ export function useNewIssues({
     refreshIssues();
   }, [refreshIssues]);
 
-  const defaultWeekAnchor = useMemo(() => {
-    if (weeksWithData.length > 0) {
-      return weeksWithData[weeksWithData.length - 1];
+  const defaultRound = useMemo(() => {
+    if (rounds.length > 0) {
+      return rounds[0];
     }
 
-    return getDefaultWeekAnchor([]);
-  }, [weeksWithData]);
+    const today = new Date();
+    return {
+      year: today.getFullYear(),
+      month: today.getMonth() + 1,
+      weekOfMonth: 1,
+      roundLabel: "",
+      thursdayDate: today.toISOString().slice(0, 10),
+      roundKey: `${today.getFullYear()}-${today.getMonth() + 1}-1`,
+    };
+  }, [rounds]);
+
+  const createIssue = useCallback(
+    async (payload) => {
+      const response = await issueApi.create(payload);
+      await refreshMeta();
+      await refreshIssues();
+      return response.data;
+    },
+    [refreshIssues, refreshMeta]
+  );
+
+  const retryRedmine = useCallback(
+    async (issueId) => {
+      const response = await issueApi.retryRedmine(issueId);
+      await refreshIssues();
+      return response.data;
+    },
+    [refreshIssues]
+  );
 
   return {
     issues,
-    weeksWithData,
+    rounds,
     assigneeOptions,
     pagination,
     loading,
     error,
-    defaultWeekAnchor,
+    defaultRound,
     refreshMeta,
     refreshIssues,
+    fetchAllIssuesForRound,
+    createIssue,
+    retryRedmine,
   };
 }
+
+export default useNewIssues;

@@ -215,6 +215,10 @@ export async function deleteVersion(id) {
     throw new Error("VERSION_HAS_TEST_RUNS");
   }
 
+  await prisma.testCase.deleteMany({
+    where: { versionId: Number(id) },
+  });
+
   await prisma.version.delete({
     where: { id: Number(id) },
   });

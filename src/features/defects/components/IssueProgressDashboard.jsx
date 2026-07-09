@@ -1,14 +1,22 @@
-import { useEffect, useState } from "react";
-import { DELETE_ISSUE_VERSION_CONFIRM } from "../constants/defectConstants";
+import { useEffect, useMemo, useState } from "react";
+import {
+  DELETE_ISSUE_VERSION_CONFIRM,
+  ISSUE_ROUND_STATUS_TONE,
+} from "../constants/defectConstants";
 import VersionYearVersionPicker from "./VersionYearVersionPicker";
+import {
+  filterRoundsByYear,
+  getChartRounds,
+  getLatestWrittenRound,
+  groupRoundsByYearMonth,
+} from "../utils/issueRoundUtils";
 import {
   getDefaultVersionForYear,
   getDefaultYearLabel,
   getVersionYearLabel,
 } from "../utils/issueVersionUtils";
 
-const EMPTY_WEEK_FORM = {
-  dateValue: "",
+const EMPTY_ROUND_FORM = {
   total: "",
   inProgress: "",
   newCount: "",
@@ -21,38 +29,10 @@ const EMPTY_VERSION_FORM = {
   description: "",
 };
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
 function toNumber(value) {
   const numberValue = Number(value);
 
   return Number.isFinite(numberValue) ? numberValue : 0;
-}
-
-function getWeekday(dateValue) {
-  if (!dateValue) {
-    return "";
-  }
-
-  return WEEKDAYS[new Date(`${dateValue}T00:00:00`).getDay()];
-}
-
-function formatDisplayDate(dateValue) {
-  if (!dateValue) {
-    return "-";
-  }
-
-  return `${dateValue.replaceAll("-", ".")}(${getWeekday(dateValue)})`;
-}
-
-function formatChartDate(dateValue) {
-  if (!dateValue) {
-    return "-";
-  }
-
-  const [, month, day] = dateValue.split("-");
-
-  return `${dateValue.slice(2, 4)}.${month}.${day}(${getWeekday(dateValue)})`;
 }
 
 function calculateCompletionRate(total, newCount) {
@@ -71,15 +51,13 @@ function getRateValue(total, newCount) {
   return Number((((total - newCount) / total) * 100).toFixed(2));
 }
 
-function getSortedRows(rows = []) {
-  return [...rows].sort((a, b) => a.dateValue.localeCompare(b.dateValue));
-}
-
-function getVersionSummary(version) {
-  const rows = getSortedRows(version.rows);
-  const latestRow = rows[rows.length - 1];
-  const firstDate = rows[0]?.dateValue ?? version.startDate;
-  const lastDate = rows[rows.length - 1]?.dateValue ?? version.endDate;
+function getVersionSummary(version, rounds = []) {
+  const latestRow = getLatestWrittenRound(rounds);
+  const sortedRounds = [...rounds].sort((left, right) =>
+    left.thursdayDate.localeCompare(right.thursdayDate)
+  );
+  const firstRound = sortedRounds[0];
+  const lastRound = sortedRounds[sortedRounds.length - 1];
   const total = latestRow?.total ?? 0;
   const inProgress = latestRow?.inProgress ?? 0;
   const newCount = latestRow?.newCount ?? 0;
@@ -91,11 +69,10 @@ function getVersionSummary(version) {
     : 0;
 
   return {
-    rows,
     latestRow,
     period:
-      firstDate && lastDate
-        ? `${firstDate.replaceAll("-", ".")} ~ ${lastDate.replaceAll("-", ".")}`
+      firstRound && lastRound
+        ? `${firstRound.roundLabel} ~ ${lastRound.roundLabel}`
         : "예정",
     total,
     inProgress,
@@ -103,8 +80,18 @@ function getVersionSummary(version) {
     completionRate,
     completionRateValue,
     completedCount: Math.max(total - newCount, 0),
-    lastUpdated: latestRow?.dateValue ?? "-",
+    lastUpdated: latestRow?.roundLabel ?? "-",
   };
+}
+
+function RoundStatusBadge({ status }) {
+  const tone = ISSUE_ROUND_STATUS_TONE[status] ?? "waiting";
+
+  return (
+    <span className={`tr-round-status-badge tr-round-status-${tone}`}>
+      {status}
+    </span>
+  );
 }
 
 function IssueLineChart({ chart }) {
@@ -113,13 +100,21 @@ function IssueLineChart({ chart }) {
   const padding = { top: 18, right: 16, bottom: 34, left: 34 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
-  const maxValue = Math.max(1, ...chart.flatMap((item) => [item.total, item.inProgress, item.newCount]));
+  const maxValue = Math.max(
+    1,
+    ...chart.flatMap((item) => [item.total, item.inProgress, item.newCount])
+  );
 
   if (chart.length === 0) {
     return (
-      <svg className="tr-issue-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="이슈 진행 추이">
+      <svg
+        className="tr-issue-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="이슈 진행 추이"
+      >
         <text x={width / 2} y={height / 2} textAnchor="middle">
-          표시할 주차 데이터가 없습니다.
+          작성 완료된 회차가 없습니다.
         </text>
       </svg>
     );
@@ -138,14 +133,24 @@ function IssueLineChart({ chart }) {
   const areaPoints = `${padding.left},${padding.top + plotHeight} ${buildPolyline("newCount")} ${padding.left + plotWidth},${padding.top + plotHeight}`;
 
   return (
-    <svg className="tr-issue-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="이슈 진행 추이">
+    <svg
+      className="tr-issue-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label="이슈 진행 추이"
+    >
       {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
         const y = padding.top + plotHeight * ratio;
         const label = Math.round(maxValue * (1 - ratio));
 
         return (
           <g key={ratio}>
-            <line x1={padding.left} y1={y} x2={padding.left + plotWidth} y2={y} />
+            <line
+              x1={padding.left}
+              y1={y}
+              x2={padding.left + plotWidth}
+              y2={y}
+            />
             <text x={padding.left - 10} y={y + 4} textAnchor="end">
               {label}
             </text>
@@ -154,9 +159,18 @@ function IssueLineChart({ chart }) {
       })}
 
       <polygon className="tr-issue-chart-area" points={areaPoints} />
-      <polyline className="tr-issue-chart-line tr-total-line" points={buildPolyline("total")} />
-      <polyline className="tr-issue-chart-line tr-progress-line" points={buildPolyline("inProgress")} />
-      <polyline className="tr-issue-chart-line tr-new-line" points={buildPolyline("newCount")} />
+      <polyline
+        className="tr-issue-chart-line tr-total-line"
+        points={buildPolyline("total")}
+      />
+      <polyline
+        className="tr-issue-chart-line tr-progress-line"
+        points={buildPolyline("inProgress")}
+      />
+      <polyline
+        className="tr-issue-chart-line tr-new-line"
+        points={buildPolyline("newCount")}
+      />
 
       {chart.map((item, index) => (
         <text
@@ -173,8 +187,8 @@ function IssueLineChart({ chart }) {
   );
 }
 
-function VersionSummaryCards({ version }) {
-  const summary = getVersionSummary(version);
+function VersionSummaryCards({ version, rounds }) {
+  const summary = getVersionSummary(version, rounds);
 
   return (
     <div className="tr-version-detail-summary">
@@ -211,15 +225,88 @@ function VersionSummaryCards({ version }) {
   );
 }
 
-function IssueWeekInput({ item, allRows, onSave, onDelete }) {
-  const [form, setForm] = useState(EMPTY_WEEK_FORM);
-  const [editingId, setEditingId] = useState(null);
+function IssueRoundSidebar({ rounds, selectedRoundId, onSelect }) {
+  const grouped = groupRoundsByYearMonth(rounds);
+  const years = Object.keys(grouped).sort((left, right) => Number(right) - Number(left));
+
+  if (years.length === 0) {
+    return (
+      <aside className="tr-round-sidebar">
+        <p className="tr-empty-message">생성된 주차 회차가 없습니다.</p>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="tr-round-sidebar">
+      {years.map((year) => (
+        <section key={year} className="tr-round-year-group">
+          <h4>{year}년</h4>
+          {Object.keys(grouped[year])
+            .sort((left, right) => Number(right) - Number(left))
+            .map((month) => (
+              <ul key={`${year}-${month}`} className="tr-round-month-list">
+                {grouped[year][month].map((round) => (
+                  <li key={round.id}>
+                    <button
+                      type="button"
+                      className={
+                        selectedRoundId === round.id ? "tr-round-item active" : "tr-round-item"
+                      }
+                      onClick={() => onSelect(round)}
+                    >
+                      <span>{round.roundLabel}</span>
+                      <RoundStatusBadge status={round.status} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ))}
+        </section>
+      ))}
+    </aside>
+  );
+}
+
+function IssueRoundEditor({ round, onSave }) {
+  const [form, setForm] = useState(EMPTY_ROUND_FORM);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (!round) {
+      setForm(EMPTY_ROUND_FORM);
+      return;
+    }
+
+    setForm({
+      total:
+        round.total !== null && round.total !== undefined
+          ? String(round.total)
+          : "",
+      inProgress:
+        round.inProgress !== null && round.inProgress !== undefined
+          ? String(round.inProgress)
+          : "",
+      newCount:
+        round.newCount !== null && round.newCount !== undefined
+          ? String(round.newCount)
+          : "",
+    });
+    setErrorMessage("");
+  }, [round]);
+
+  if (!round) {
+    return (
+      <div className="tr-round-editor tr-round-editor-empty">
+        <p className="tr-empty-message">작성할 주차 회차를 선택해주세요.</p>
+      </div>
+    );
+  }
+
   const total = toNumber(form.total);
   const inProgress = toNumber(form.inProgress);
   const newCount = toNumber(form.newCount);
   const completionRate = calculateCompletionRate(total, newCount);
-  const isEditing = Boolean(editingId);
 
   const handleFieldChange = (fieldName, value) => {
     setForm((prev) => ({
@@ -229,23 +316,11 @@ function IssueWeekInput({ item, allRows, onSave, onDelete }) {
     setErrorMessage("");
   };
 
-  const handleReset = () => {
-    setForm(EMPTY_WEEK_FORM);
-    setEditingId(null);
-    setErrorMessage("");
-  };
-
-  const validateForm = () => {
-    const hasDuplicateDate = allRows.some(
-      (row) => row.dateValue === form.dateValue && row.id !== editingId
-    );
-
-    if (!form.dateValue) {
-      return "기준일을 선택해주세요.";
-    }
-
+  const validateForm = (requireComplete = false) => {
     if ([form.total, form.inProgress, form.newCount].some((value) => value === "")) {
-      return "이슈 수를 모두 입력해주세요.";
+      return requireComplete
+        ? "작성완료 처리하려면 이슈 수를 모두 입력해주세요."
+        : "저장하려면 이슈 수를 모두 입력해주세요.";
     }
 
     if ([total, inProgress, newCount].some((value) => value < 0)) {
@@ -256,65 +331,40 @@ function IssueWeekInput({ item, allRows, onSave, onDelete }) {
       return "진행중/신규·진행 이슈 수는 전체 이슈 수보다 클 수 없습니다.";
     }
 
-    if (hasDuplicateDate) {
-      return "이미 등록된 기준일입니다. 기존 주차를 수정해주세요.";
-    }
-
     return "";
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const validationMessage = validateForm();
+  const handleSave = (markComplete = false) => {
+    const validationMessage = validateForm(markComplete);
 
     if (validationMessage) {
       setErrorMessage(validationMessage);
       return;
     }
 
-    onSave(item.version, {
-      id: editingId ?? `${item.version}-${form.dateValue}`,
-      dateValue: form.dateValue,
-      total,
-      inProgress,
-      newCount,
-    });
-    handleReset();
-  };
-
-  const handleEditClick = (row) => {
-    setForm({
-      dateValue: row.dateValue,
-      total: String(row.total),
-      inProgress: String(row.inProgress),
-      newCount: String(row.newCount),
-    });
-    setEditingId(row.id);
+    onSave(
+      {
+        ...round,
+        total,
+        inProgress,
+        newCount,
+      },
+      { markComplete }
+    );
     setErrorMessage("");
   };
 
-  const handleDeleteClick = (row) => {
-    const confirmed = window.confirm(`${formatDisplayDate(row.dateValue)} 데이터를 삭제하시겠습니까?`);
-
-    if (confirmed) {
-      onDelete(item.version, row.id);
-      if (editingId === row.id) {
-        handleReset();
-      }
-    }
-  };
-
   return (
-    <div className="tr-week-editor">
-      <form className="tr-week-form" onSubmit={handleSubmit}>
-        <label>
-          <span>기준일</span>
-          <input
-            type="date"
-            value={form.dateValue}
-            onChange={(e) => handleFieldChange("dateValue", e.target.value)}
-          />
-        </label>
+    <div className="tr-round-editor">
+      <div className="tr-round-editor-header">
+        <div>
+          <h4>{round.roundLabel}</h4>
+          <p>목요일 기준 회차 · {round.thursdayDate.replaceAll("-", ".")}</p>
+        </div>
+        <RoundStatusBadge status={round.status} />
+      </div>
+
+      <div className="tr-round-form">
         <label>
           <span>전체 이슈 수</span>
           <input
@@ -346,84 +396,67 @@ function IssueWeekInput({ item, allRows, onSave, onDelete }) {
           <span>완료율</span>
           <strong>{completionRate}</strong>
         </div>
-        <div className="tr-week-form-actions">
-          <button type="submit" className="tr-week-save-btn">
-            {isEditing ? "수정 저장" : "저장"}
-          </button>
-          {isEditing ? (
-            <button type="button" className="tr-week-cancel-btn" onClick={handleReset}>
-              취소
-            </button>
-          ) : null}
-        </div>
-      </form>
+      </div>
+
       {errorMessage ? <p className="tr-week-error">{errorMessage}</p> : null}
 
-      <div className="tr-week-manage-table-scroll">
-        <table className="tr-week-manage-table">
-          <thead>
-            <tr>
-              <th>기준일</th>
-              <th>전체</th>
-              <th>진행중</th>
-              <th>신규/진행</th>
-              <th>완료율</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {allRows.length > 0 ? (
-              allRows.map((row) => (
-                <tr key={row.id} className={editingId === row.id ? "is-editing" : ""}>
-                  <td>{formatDisplayDate(row.dateValue)}</td>
-                  <td>{row.total}</td>
-                  <td>{row.inProgress}</td>
-                  <td>{row.newCount}</td>
-                  <td>{calculateCompletionRate(row.total, row.newCount)}</td>
-                  <td>
-                    <button type="button" onClick={() => handleEditClick(row)}>
-                      수정
-                    </button>
-                    <button type="button" className="tr-week-delete-btn" onClick={() => handleDeleteClick(row)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="tr-empty-message">
-                  등록된 주차 데이터가 없습니다.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="tr-round-form-actions">
+        <button
+          type="button"
+          className="tr-week-save-btn"
+          onClick={() => handleSave(false)}
+        >
+          임시 저장
+        </button>
+        <button
+          type="button"
+          className="tr-round-complete-btn"
+          onClick={() => handleSave(true)}
+        >
+          작성완료
+        </button>
       </div>
     </div>
   );
 }
 
-function IssueProgressVersion({
-  item,
-  allRows,
-  onSave,
-  onDelete,
-}) {
-  const chartRows = item.rows.map((row) => ({
-    label: formatChartDate(row.dateValue),
-    total: row.total,
-    inProgress: row.inProgress,
-    newCount: row.newCount,
+function IssueProgressVersion({ item, rounds, onSave }) {
+  const [selectedRound, setSelectedRound] = useState(null);
+  const chartRows = getChartRounds(rounds).map((round) => ({
+    label: round.roundLabel,
+    total: round.total ?? 0,
+    inProgress: round.inProgress ?? 0,
+    newCount: round.newCount ?? 0,
   }));
+
+  useEffect(() => {
+    if (rounds.length === 0) {
+      setSelectedRound(null);
+      return;
+    }
+
+    if (!selectedRound || !rounds.some((round) => round.id === selectedRound.id)) {
+      setSelectedRound(rounds[0]);
+    }
+  }, [rounds, selectedRound]);
 
   return (
     <article className="tr-version-detail-panel">
       <div className="tr-version-detail-header">
-        <h3>{item.version} 이슈 진행 상황</h3>
+        <h3>{item.version} 결함 현황</h3>
+        <p>시스템이 생성한 목요일 기준 주차 회차에 내용을 입력합니다.</p>
       </div>
 
-      <VersionSummaryCards version={{ ...item, rows: allRows }} />
+      <VersionSummaryCards version={item} rounds={rounds} />
+
+      <div className="tr-round-layout">
+        <IssueRoundSidebar
+          rounds={rounds}
+          selectedRoundId={selectedRound?.id}
+          onSelect={setSelectedRound}
+        />
+        <IssueRoundEditor round={selectedRound} onSave={onSave} />
+      </div>
 
       <div className="tr-issue-version">
         <div className="tr-issue-table-box">
@@ -431,50 +464,70 @@ function IssueProgressVersion({
           <table className="tr-issue-table">
             <thead>
               <tr>
-                <th>일자</th>
+                <th>회차</th>
+                <th>목요일</th>
                 <th>전체</th>
                 <th>진행 중</th>
-                <th>신규,진행</th>
+                <th>신규/진행</th>
                 <th>완료율</th>
+                <th>상태</th>
               </tr>
             </thead>
             <tbody>
-              {item.rows.length > 0 ? (
-                item.rows.map((row) => (
-                  <tr key={row.id}>
-                    <td>{formatDisplayDate(row.dateValue)}</td>
-                    <td>{row.total}</td>
-                    <td>{row.inProgress}</td>
-                    <td>{row.newCount}</td>
-                    <td>{calculateCompletionRate(row.total, row.newCount)}</td>
+              {rounds.length > 0 ? (
+                rounds.map((round) => (
+                  <tr
+                    key={round.id}
+                    className={selectedRound?.id === round.id ? "is-selected" : ""}
+                    onClick={() => setSelectedRound(round)}
+                  >
+                    <td>{round.roundLabel}</td>
+                    <td>{round.thursdayDate.replaceAll("-", ".")}</td>
+                    <td>{round.total ?? "-"}</td>
+                    <td>{round.inProgress ?? "-"}</td>
+                    <td>{round.newCount ?? "-"}</td>
+                    <td>
+                      {round.total !== null && round.newCount !== null
+                        ? calculateCompletionRate(round.total, round.newCount)
+                        : "-"}
+                    </td>
+                    <td>
+                      <RoundStatusBadge status={round.status} />
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="tr-empty-message">
-                    선택한 기간에 표시할 데이터가 없습니다.
+                  <td colSpan="7" className="tr-empty-message">
+                    선택한 연도에 표시할 주차 회차가 없습니다.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-          <button type="button" className="tr-link-btn">더보기⌄</button>
         </div>
 
         <div className="tr-issue-chart-box">
           <div className="tr-issue-chart-title">
             <h4>진행 추이</h4>
             <div className="tr-issue-legend">
-              <span><i className="tr-dot-total" />전체</span>
-              <span><i className="tr-dot-progress" />진행 중</span>
-              <span><i className="tr-dot-new" />신규,진행</span>
+              <span>
+                <i className="tr-dot-total" />
+                전체
+              </span>
+              <span>
+                <i className="tr-dot-progress" />
+                진행 중
+              </span>
+              <span>
+                <i className="tr-dot-new" />
+                신규/진행
+              </span>
             </div>
           </div>
           <IssueLineChart chart={chartRows} />
         </div>
       </div>
-
-      <IssueWeekInput item={item} allRows={allRows} onSave={onSave} onDelete={onDelete} />
     </article>
   );
 }
@@ -501,7 +554,7 @@ function AddVersionModal({ isOpen, versions, onClose, onCreate }) {
     onClose();
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const trimmedVersion = form.version.trim();
 
@@ -525,16 +578,23 @@ function AddVersionModal({ isOpen, versions, onClose, onCreate }) {
       return;
     }
 
-    onCreate({
-      version: trimmedVersion,
-      registeredAt: form.startDate.replaceAll("-", "."),
-      status: form.startDate > new Date().toISOString().slice(0, 10) ? "예정" : "진행 중",
-      startDate: form.startDate,
-      endDate: form.endDate,
-      description: form.description.trim(),
-      rows: [],
-    });
-    handleClose();
+    try {
+      await onCreate({
+        version: trimmedVersion,
+        registeredAt: form.startDate.replaceAll("-", "."),
+        status:
+          form.startDate > new Date().toISOString().slice(0, 10)
+            ? "예정"
+            : "진행 중",
+        startDate: form.startDate,
+        endDate: form.endDate,
+        description: form.description.trim(),
+        rows: [],
+      });
+      handleClose();
+    } catch {
+      setErrorMessage("버전을 저장하지 못했습니다. API 서버 상태를 확인해주세요.");
+    }
   };
 
   return (
@@ -542,11 +602,15 @@ function AddVersionModal({ isOpen, versions, onClose, onCreate }) {
       <section className="tr-version-modal">
         <div className="tr-version-modal-header">
           <h3>새 버전 추가</h3>
-          <button type="button" onClick={handleClose} aria-label="닫기">×</button>
+          <button type="button" onClick={handleClose} aria-label="닫기">
+            ×
+          </button>
         </div>
         <form className="tr-version-modal-form" onSubmit={handleSubmit}>
           <label>
-            <span>버전명 <em>*</em></span>
+            <span>
+              버전명 <em>*</em>
+            </span>
             <input
               type="text"
               value={form.version}
@@ -603,7 +667,9 @@ function MenuIssueDistribution({ items }) {
     <section className="tr-issue-card">
       <div className="tr-section-header">
         <h3>메뉴별 이슈 분포 (전체)</h3>
-        <button type="button" className="tr-small-view-btn">전체 보기</button>
+        <button type="button" className="tr-small-view-btn">
+          전체 보기
+        </button>
       </div>
       <ul className="tr-menu-bars">
         {items.map((item) => (
@@ -625,7 +691,9 @@ function RecentIssues({ issues }) {
     <section className="tr-issue-card">
       <div className="tr-section-header">
         <h3>최근 등록된 이슈</h3>
-        <button type="button" className="tr-small-view-btn">전체 보기</button>
+        <button type="button" className="tr-small-view-btn">
+          전체 보기
+        </button>
       </div>
       <ul className="tr-recent-issue-list">
         {issues.map((issue) => (
@@ -634,7 +702,9 @@ function RecentIssues({ issues }) {
               <strong>{issue.id}</strong>
               <span>{issue.title}</span>
             </div>
-            <em className={`tr-result-pill tr-result-${issue.result.toLowerCase()}`}>{issue.result}</em>
+            <em className={`tr-result-pill tr-result-${issue.result.toLowerCase()}`}>
+              {issue.result}
+            </em>
             <time>{issue.date}</time>
           </li>
         ))}
@@ -659,17 +729,21 @@ function IssueSeverityChart({ distribution }) {
       },
       { currentPercent: 0, parts: [] }
     )
-    .parts
-    .join(", ");
+    .parts.join(", ");
 
   return (
     <section className="tr-issue-card">
       <div className="tr-section-header">
         <h3>이슈 심각도 분포</h3>
-        <button type="button" className="tr-small-view-btn">전체 보기</button>
+        <button type="button" className="tr-small-view-btn">
+          전체 보기
+        </button>
       </div>
       <div className="tr-severity-layout">
-        <div className="tr-donut" style={{ background: `conic-gradient(${gradient})` }}>
+        <div
+          className="tr-donut"
+          style={{ background: `conic-gradient(${gradient})` }}
+        >
           <div className="tr-donut-hole">
             <strong>{distribution.total}</strong>
             <span>전체 결함</span>
@@ -678,7 +752,10 @@ function IssueSeverityChart({ distribution }) {
         <ul className="tr-chart-legend">
           {distribution.segments.map((segment) => (
             <li key={segment.key} className="tr-legend-item">
-              <span className="tr-legend-dot" style={{ backgroundColor: segment.color }} />
+              <span
+                className="tr-legend-dot"
+                style={{ backgroundColor: segment.color }}
+              />
               <span className="tr-legend-label">{segment.label}</span>
               <strong className="tr-legend-count">
                 {segment.count}건 ({segment.percent}%)
@@ -693,30 +770,29 @@ function IssueSeverityChart({ distribution }) {
 
 function IssueProgressDashboard({
   versions,
-  allVersions,
   menuDistribution,
   recentIssues,
   severityDistribution,
-  onSaveIssueWeek,
-  onDeleteIssueWeek,
+  onSaveIssueRound,
   onCreateIssueVersion,
   onDeleteIssueVersion,
   focusedVersionName,
   onFocusedVersionHandled,
 }) {
   const [selectedYear, setSelectedYear] = useState(() =>
-    getDefaultYearLabel(allVersions)
+    getDefaultYearLabel(versions)
   );
-  const [selectedVersionName, setSelectedVersionName] = useState(
-    () => getDefaultVersionForYear(allVersions, getDefaultYearLabel(allVersions))
+  const [selectedVersionName, setSelectedVersionName] = useState(() =>
+    getDefaultVersionForYear(versions, getDefaultYearLabel(versions))
   );
   const [isAddVersionOpen, setIsAddVersionOpen] = useState(false);
   const selectedVersion =
     versions.find((version) => version.version === selectedVersionName) ??
     versions[0];
-  const selectedAllVersion =
-    allVersions.find((version) => version.version === selectedVersion?.version) ??
-    selectedVersion;
+  const yearRounds = useMemo(
+    () => filterRoundsByYear(selectedVersion?.rows ?? [], selectedYear),
+    [selectedVersion, selectedYear]
+  );
 
   useEffect(() => {
     if (!focusedVersionName) {
@@ -731,28 +807,28 @@ function IssueProgressDashboard({
   useEffect(() => {
     if (
       selectedVersionName &&
-      allVersions.some((version) => version.version === selectedVersionName)
+      versions.some((version) => version.version === selectedVersionName)
     ) {
       return;
     }
 
-    const nextVersion = getDefaultVersionForYear(allVersions, selectedYear);
+    const nextVersion = getDefaultVersionForYear(versions, selectedYear);
 
     if (nextVersion) {
       setSelectedVersionName(nextVersion);
       return;
     }
 
-    const defaultYear = getDefaultYearLabel(allVersions);
+    const defaultYear = getDefaultYearLabel(versions);
 
     if (defaultYear) {
       setSelectedYear(defaultYear);
-      setSelectedVersionName(getDefaultVersionForYear(allVersions, defaultYear));
+      setSelectedVersionName(getDefaultVersionForYear(versions, defaultYear));
       return;
     }
 
     setSelectedVersionName("");
-  }, [allVersions, selectedVersionName, selectedYear]);
+  }, [versions, selectedVersionName, selectedYear]);
 
   const handleDeleteVersionClick = () => {
     if (!selectedVersionName) {
@@ -774,8 +850,11 @@ function IssueProgressDashboard({
         <section className="tr-issue-card tr-progress-overview-card">
           <div className="tr-section-header tr-version-section-header">
             <div>
-              <h3>이슈 진행 상황</h3>
-              <p>년도를 선택한 뒤 버전을 조회해 진행 현황을 확인합니다.</p>
+              <h3>결함 현황</h3>
+              <p>
+                매주 목요일 기준 주차 회차가 자동 생성됩니다. 회차를 선택해
+                내용을 입력하세요.
+              </p>
             </div>
             <button
               type="button"
@@ -798,7 +877,7 @@ function IssueProgressDashboard({
             ) : null}
           </div>
           <VersionYearVersionPicker
-            versions={allVersions}
+            versions={versions}
             selectedYear={selectedYear}
             selectedVersion={selectedVersionName}
             onYearChange={setSelectedYear}
@@ -808,9 +887,8 @@ function IssueProgressDashboard({
           {selectedVersion ? (
             <IssueProgressVersion
               item={selectedVersion}
-              allRows={selectedAllVersion.rows ?? []}
-              onSave={onSaveIssueWeek}
-              onDelete={onDeleteIssueWeek}
+              rounds={yearRounds}
+              onSave={onSaveIssueRound}
             />
           ) : null}
         </section>
@@ -823,7 +901,7 @@ function IssueProgressDashboard({
       </div>
       <AddVersionModal
         isOpen={isAddVersionOpen}
-        versions={allVersions}
+        versions={versions}
         onClose={() => setIsAddVersionOpen(false)}
         onCreate={onCreateIssueVersion}
       />

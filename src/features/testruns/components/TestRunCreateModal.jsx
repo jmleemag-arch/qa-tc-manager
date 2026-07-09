@@ -9,7 +9,7 @@ import {
   getDefaultYearLabel,
 } from "../../defects/utils/issueVersionUtils";
 import {
-  createTestRun,
+  buildTestRunCreatePayload,
   getTestCasesByMenu,
   validateTestRunCreateForm,
 } from "../utils/testRunUtils";
@@ -17,10 +17,10 @@ import {
 function TestRunCreateModal({
   isOpen,
   allTestCases,
-  existingRuns,
   issueVersions,
   onClose,
   onCreate,
+  isSubmitting = false,
 }) {
   const [runName, setRunName] = useState("");
   const [selectedYear, setSelectedYear] = useState(() =>
@@ -136,15 +136,14 @@ function TestRunCreateModal({
       selectedUids.has(testCase.uid)
     );
 
-    const newTestRun = createTestRun({
+    const payload = buildTestRunCreatePayload({
       runName,
       targetMenu,
       targetVersion,
       selectedTestCases,
-      existingRuns,
     });
 
-    onCreate(newTestRun);
+    onCreate(payload);
   };
 
   return (
@@ -282,8 +281,12 @@ function TestRunCreateModal({
             >
               취소
             </button>
-            <button type="submit" className="tr-create-submit-btn">
-              생성
+            <button
+              type="submit"
+              className="tr-create-submit-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "생성 중..." : "생성"}
             </button>
           </div>
         </form>

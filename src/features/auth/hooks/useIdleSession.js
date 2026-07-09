@@ -67,9 +67,9 @@ export function useIdleSession() {
     setShowExpiryWarning(false);
   }, []);
 
-  const login = useCallback((userId) => {
+  const login = useCallback((user) => {
     loadSessionSettings().finally(() => {
-      const session = createAuthSession(userId);
+      const session = createAuthSession(user);
       setAuthSession(session);
       setShowExpiryWarning(false);
       lastExtendAtRef.current = Date.now();

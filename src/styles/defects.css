@@ -343,3 +343,130 @@
     align-items: stretch;
   }
 }
+
+.df-create-issue-btn,
+.df-issue-submit-btn {
+  height: 38px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.df-issue-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+}
+
+.df-issue-modal {
+  width: min(720px, 100%);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+}
+
+.df-issue-modal-header,
+.df-issue-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.df-issue-modal-header h3,
+.df-issue-modal-header p {
+  margin: 0;
+}
+
+.df-issue-modal-header p {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.df-issue-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 20px 20px;
+}
+
+.df-issue-modal-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.df-issue-modal-form input,
+.df-issue-modal-form textarea,
+.df-issue-modal-form select {
+  width: 100%;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.df-issue-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.df-issue-modal-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.df-issue-cancel-btn,
+.df-retry-btn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.df-redmine-status {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.df-redmine-status-synced {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.df-redmine-status-failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.df-week-label {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}

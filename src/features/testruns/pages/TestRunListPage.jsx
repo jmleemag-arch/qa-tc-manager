@@ -1,25 +1,23 @@
 import { useMemo, useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
+import { useAllTestCases } from "../../../hooks/useTestCases";
+import { useTestRuns } from "../../../hooks/useTestRuns";
 import { useVersions } from "../../../hooks/useVersions";
 import TestRunCreateModal from "../components/TestRunCreateModal";
 import TestRunStatusChart from "../components/TestRunStatusChart";
 import TestRunSummaryCards from "../components/TestRunSummaryCards";
 import TestRunTable from "../components/TestRunTable";
 import TestRunDetailPage from "./TestRunDetailPage";
-import { testCases as allTestCases } from "../../testcases/data/testCaseMockData";
 import { MENU_FILTER_ALL, STATUS_FILTER_ALL } from "../constants/testRunConstants";
-import { testRuns as initialTestRuns } from "../data/testRunMockData";
 import {
   downloadTestRunDetailExcel,
   downloadTestRunListExcel,
 } from "../utils/testRunExcelUtils";
 import {
-  deleteTestRun,
   filterTestRuns,
   findTestRunById,
   getStatusDistribution,
   getSummaryStats,
-  updateTestRunCaseResult,
 } from "../utils/testRunUtils";
 
 function TestRunListPage({
@@ -34,14 +32,22 @@ function TestRunListPage({
   routeParams = {},
   onRouteChange,
 }) {
-  const [testRuns, setTestRuns] = useState(initialTestRuns);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [menuFilter, setMenuFilter] = useState(MENU_FILTER_ALL);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchText, setSearchText] = useState("");
-  const { issueVersions, loading: versionsLoading } = useVersions();
+  const { issueVersions } = useVersions();
+  const { testCases: allTestCases } = useAllTestCases();
+  const {
+    testRuns,
+    loading: testRunsLoading,
+    createTestRun,
+    deleteTestRun,
+    updateTestRunItemResult,
+  } = useTestRuns();
   const selectedRunId = routeParams.runId ?? null;
 
   const selectedTestRun = useMemo(
@@ -66,9 +72,18 @@ function TestRunListPage({
     [testRuns]
   );
 
-  const handleCreateTestRun = (newTestRun) => {
-    setTestRuns((prev) => [...prev, newTestRun]);
-    setIsCreateModalOpen(false);
+  const handleCreateTestRun = async (payload) => {
+    setIsCreating(true);
+
+    try {
+      await createTestRun(payload);
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("테스트 런 생성에 실패했습니다.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleViewRun = (runId) => {
@@ -79,22 +94,30 @@ function TestRunListPage({
     onRouteChange?.({ runId: null });
   };
 
-  const handleDeleteRun = (runId) => {
-    setTestRuns((prev) => deleteTestRun(prev, runId));
+  const handleDeleteRun = async (dbId) => {
+    try {
+      await deleteTestRun(dbId);
 
-    if (selectedRunId === runId) {
-      onRouteChange?.({ runId: null }, { replace: true });
+      if (selectedTestRun?.dbId === dbId) {
+        onRouteChange?.({ runId: null }, { replace: true });
+      }
+    } catch (error) {
+      console.error(error);
+      alert("테스트 런 삭제에 실패했습니다.");
     }
   };
 
-  const handleResultChange = (uid, result) => {
-    if (!selectedRunId) {
+  const handleResultChange = async (uid, result) => {
+    if (!selectedTestRun?.dbId) {
       return;
     }
 
-    setTestRuns((prev) =>
-      updateTestRunCaseResult(prev, selectedRunId, uid, result)
-    );
+    try {
+      await updateTestRunItemResult(selectedTestRun.dbId, uid, result);
+    } catch (error) {
+      console.error(error);
+      alert("실행 결과 저장에 실패했습니다.");
+    }
   };
 
   const handleListExcelDownload = () => {
@@ -120,7 +143,9 @@ function TestRunListPage({
       onNotificationClick={onNotificationClick}
       onMarkAllNotificationsRead={onMarkAllNotificationsRead}
     >
-      {selectedTestRun ? (
+      {testRunsLoading ? (
+        <p className="tr-loading-message">테스트 런 목록을 불러오는 중입니다.</p>
+      ) : selectedTestRun ? (
         <TestRunDetailPage
           testRun={selectedTestRun}
           onBack={handleBackToRunList}
@@ -161,11 +186,10 @@ function TestRunListPage({
       <TestRunCreateModal
         isOpen={isCreateModalOpen}
         allTestCases={allTestCases}
-        existingRuns={testRuns}
         issueVersions={issueVersions}
-        versionsLoading={versionsLoading}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateTestRun}
+        isSubmitting={isCreating}
       />
     </MainLayout>
   );

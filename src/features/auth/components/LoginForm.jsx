@@ -1,28 +1,32 @@
 import { useState } from "react";
-import {
-  DEMO_USER_ID,
-  DEMO_USER_PASSWORD,
-  DEMO_USERS,
-  LOGIN_ERROR_MESSAGE,
-} from "../constants/authConstants";
+import authApi from "../../../services/authApi";
+import { LOGIN_ERROR_MESSAGE } from "../constants/authConstants";
 
 function LoginForm({ onLogin }) {
   const [loginId, setLoginId] = useState("");
   const [loginPw, setLoginPw] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setLoginError("");
 
-    const matchedUser = DEMO_USERS.find(
-      (user) => user.id === loginId && user.password === loginPw
-    );
+    try {
+      const response = await authApi.login(loginId.trim(), loginPw);
+      const user = response.data;
 
-    if (matchedUser) {
-      onLogin(matchedUser.id);
-      setLoginError("");
-    } else {
+      if (user?.userId) {
+        onLogin(user);
+        return;
+      }
+
       setLoginError(LOGIN_ERROR_MESSAGE);
+    } catch {
+      setLoginError(LOGIN_ERROR_MESSAGE);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -35,7 +39,8 @@ function LoginForm({ onLogin }) {
             type="text"
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
-            placeholder={DEMO_USER_ID}
+            placeholder="tester1"
+            disabled={isSubmitting}
           />
         </label>
 
@@ -45,20 +50,20 @@ function LoginForm({ onLogin }) {
             type="password"
             value={loginPw}
             onChange={(e) => setLoginPw(e.target.value)}
-            placeholder={DEMO_USER_PASSWORD}
+            placeholder="test1234"
+            disabled={isSubmitting}
           />
         </label>
 
         {loginError && <p className="login-error">{loginError}</p>}
 
-        <button type="submit">로그인</button>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "로그인 중..." : "로그인"}
+        </button>
       </form>
 
       <div className="login-help">
-        <span>임시 계정 (비밀번호: {DEMO_USER_PASSWORD})</span>
-        <strong>
-          {DEMO_USERS.map((user) => user.id).join(" / ")}
-        </strong>
+        <span>DB에 등록된 계정으로 로그인합니다. (기본 비밀번호: test1234)</span>
       </div>
     </>
   );

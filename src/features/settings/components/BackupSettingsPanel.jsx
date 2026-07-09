@@ -3,7 +3,6 @@ import {
   BACKUP_EXPORT_SUCCESS_MESSAGE,
   BACKUP_IMPORT_FAIL_MESSAGE,
   BACKUP_IMPORT_SUCCESS_MESSAGE,
-  BACKUP_STORAGE_KEYS,
 } from "../constants/settingsConstants";
 import {
   exportAppBackup,
@@ -16,22 +15,31 @@ import SettingsCard from "./SettingsCard";
 function BackupSettingsPanel({ settings, onChange }) {
   const fileInputRef = useRef(null);
   const [message, setMessage] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   const showMessage = (text) => {
     setMessage(text);
     window.setTimeout(() => setMessage(""), 3000);
   };
 
-  const handleExport = () => {
-    const exportedAt = exportAppBackup();
-    const nextSettings = {
-      ...readAppSettings(),
-      lastBackupAt: exportedAt,
-    };
+  const handleExport = async () => {
+    setIsExporting(true);
 
-    writeAppSettings(nextSettings);
-    onChange(nextSettings);
-    showMessage(BACKUP_EXPORT_SUCCESS_MESSAGE);
+    try {
+      const exportedAt = await exportAppBackup();
+      const nextSettings = {
+        ...readAppSettings(),
+        lastBackupAt: exportedAt,
+      };
+
+      await writeAppSettings(nextSettings);
+      onChange(nextSettings);
+      showMessage(BACKUP_EXPORT_SUCCESS_MESSAGE);
+    } catch {
+      showMessage("백업 다운로드에 실패했습니다.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleImportClick = () => {
@@ -61,21 +69,22 @@ function BackupSettingsPanel({ settings, onChange }) {
       <div className="st-card-grid">
         <SettingsCard title="데이터 백업">
           <p className="st-card-copy">
-            테스트 케이스, 버전, 결함 진행 데이터, 앱 설정을 JSON 파일로보냅니다.
+            DB에 저장된 앱 설정(세션, 알림, 권한, 연동 등)을 JSON 파일로
+           보냅니다.
           </p>
-          <ul className="st-bullet-list">
-            {BACKUP_STORAGE_KEYS.map((key) => (
-              <li key={key}>{key}</li>
-            ))}
-          </ul>
-          <button type="button" className="st-save-btn" onClick={handleExport}>
-            백업 다운로드
+          <button
+            type="button"
+            className="st-save-btn"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? "백업 중..." : "백업 다운로드"}
           </button>
         </SettingsCard>
 
         <SettingsCard title="데이터 복원">
           <p className="st-card-copy">
-            이전에보낸 백업 파일을 선택하면 로컬 데이터를 덮어씁니다.
+            이전에보낸 백업 파일을 선택하면 DB 설정을 덮어씁니다.
           </p>
           <button
             type="button"
@@ -102,8 +111,8 @@ function BackupSettingsPanel({ settings, onChange }) {
       {message ? <p className="st-save-message st-panel-message">{message}</p> : null}
 
       <p className="st-panel-note">
-        복원 후에는 페이지가 자동으로 새로고침됩니다. 인증 세션은 보안상 백업에서
-        제외됩니다.
+        복원 후에는 페이지가 자동으로 새로고침됩니다. 테스트 케이스·버전·이슈 등
+        업무 데이터는 DB에 별도 저장되며, 이 백업은 앱 설정만 포함합니다.
       </p>
     </div>
   );

@@ -21,6 +21,7 @@ model Version {
   submenus  Submenu[]
   testCases TestCase[]
   testRuns  TestRun[]
+  issueProgressRounds IssueProgressRound[]
 
   @@map("versions")
 }
@@ -91,16 +92,46 @@ model TestRunItem {
   @@map("test_run_items")
 }
 
+model IssueProgressRound {
+  id           Int      @id @default(autoincrement())
+  versionId    Int      @map("version_id")
+  year         Int
+  month        Int
+  weekOfMonth  Int      @map("week_of_month")
+  thursdayDate DateTime @map("thursday_date")
+  total        Int?
+  inProgress   Int?     @map("in_progress")
+  newCount     Int?     @map("new_count")
+  status       String   @default("미작성")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  version Version @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, year, month, weekOfMonth])
+  @@map("issue_progress_rounds")
+}
+
 model Issue {
-  id             Int      @id @default(autoincrement())
-  redmineIssueId String?  @map("redmine_issue_id")
+  id             Int       @id @default(autoincrement())
+  redmineIssueId String?   @map("redmine_issue_id")
   title          String
+  description    String?
+  project        String?
   menu           String?
+  priority       String?
   severity       String?
   assignee       String?
-  createdOn      DateTime @map("created_on")
-  weekStart      DateTime @map("week_start")
-  weekEnd        DateTime @map("week_end")
+  redmineStatus  String    @default("대기") @map("redmine_status")
+  redmineUrl     String?   @map("redmine_url")
+  redmineError   String?   @map("redmine_error")
+  createdOn      DateTime  @map("created_on")
+  roundYear      Int?      @map("round_year")
+  roundMonth     Int?      @map("round_month")
+  roundWeek      Int?      @map("round_week")
+  thursdayDate   DateTime? @map("thursday_date")
+  weekStart      DateTime  @map("week_start")
+  weekEnd        DateTime  @map("week_end")
 
   @@map("issues")
 }
@@ -108,6 +139,7 @@ model Issue {
 model User {
   id        Int      @id @default(autoincrement())
   userId    String   @unique @map("user_id")
+  password  String   @default("test1234")
   name      String
   role      String   @default("tester")
   status    String   @default("active")

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
+import { useCustomMenuPool } from "../../../hooks/useCustomMenuPool";
+import { useTestCases } from "../../../hooks/useTestCases";
 import { useVersions } from "../../../hooks/useVersions";
 import TestCaseFilter from "../components/TestCaseFilter";
 import TestCaseToolbar from "../components/TestCaseToolbar";
 import TestCaseTable from "../components/TestCaseTable";
 import TestCaseEditModal from "../components/TestCaseEditModal";
 import TestCaseVersionManager from "../components/TestCaseVersionManager";
-import { testCases as initialTestCases } from "../data/testCaseMockData";
 import {
   DELETE_SELECT_ALERT,
   EXCEL_DOWNLOAD_EMPTY_ALERT,
@@ -20,43 +21,12 @@ import {
 import { downloadTestCasesExcel } from "../utils/excelUtils";
 import {
   assignDisplayIds,
-  createEmptyTestCase,
-  createUid,
-  deleteTestCases,
   ensureVersionMenus,
   filterTestCases,
   isAddableMenu,
   isFixedVersionMenu,
   reorderTestCases,
-  updateTestCase,
 } from "../utils/testCaseUtils";
-
-const TEST_CASE_STORAGE_KEY = "qa-manager-test-cases";
-const TEST_CASE_CUSTOM_MENU_POOL_KEY = "qa-manager-test-case-custom-menu-pool";
-
-function createCustomMenuId() {
-  return `menu-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function readStorageValue(key, fallbackValue) {
-  try {
-    const rawValue = window.localStorage.getItem(key);
-    return rawValue ? JSON.parse(rawValue) : fallbackValue;
-  } catch {
-    return fallbackValue;
-  }
-}
-
-function normalizeTestCases(storedTestCases) {
-  return storedTestCases.map((testCase) => ({
-    ...testCase,
-    versionId:
-      testCase.versionId ??
-      (Array.isArray(testCase.versions) && testCase.versions.length > 0
-        ? testCase.versions[0]
-        : null),
-  }));
-}
 
 function TestCaseListPage({
   loginUser,
@@ -77,14 +47,17 @@ function TestCaseListPage({
     deleteVersion: deleteVersionApi,
     updateSubmenus,
   } = useVersions();
-  const [testCases, setTestCases] = useState(() =>
-    normalizeTestCases(
-      readStorageValue(TEST_CASE_STORAGE_KEY, initialTestCases)
-    )
-  );
-  const [customMenuPool, setCustomMenuPool] = useState(() =>
-    readStorageValue(TEST_CASE_CUSTOM_MENU_POOL_KEY, [])
-  );
+  const {
+    testCases,
+    loading: testCasesLoading,
+    error: testCasesError,
+    createTestCase: createTestCaseApi,
+    updateTestCase: updateTestCaseApi,
+    deleteTestCases: deleteTestCasesApi,
+    reorderTestCases: reorderTestCasesApi,
+    refresh: refreshTestCases,
+  } = useTestCases();
+  const { customMenuPool, setCustomMenuPool } = useCustomMenuPool();
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(true);
   const [selectedUids, setSelectedUids] = useState(new Set());
   const [dragUid, setDragUid] = useState(null);
@@ -131,20 +104,6 @@ function TestCaseListPage({
       menus: activeVersion.menus ?? [...FIXED_VERSION_MENUS],
     };
   }, [activeVersionId, activeVersion]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      TEST_CASE_STORAGE_KEY,
-      JSON.stringify(testCases)
-    );
-  }, [testCases]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      TEST_CASE_CUSTOM_MENU_POOL_KEY,
-      JSON.stringify(customMenuPool)
-    );
-  }, [customMenuPool]);
 
   const filteredTestCases = useMemo(
     () =>
@@ -198,55 +157,65 @@ function TestCaseListPage({
     });
   };
 
-  const handleAddClick = () => {
+  const handleAddClick = async () => {
     if (!isAddableMenu(selectedMenu, addableMenus)) {
       alert(MENU_SELECT_ALERT);
       return;
     }
 
-    const uid = createUid();
-    const newTestCase = createEmptyTestCase(
-      selectedMenu,
-      uid,
-      activeVersionId
-    );
-    const nextTestCases = [...testCases, newTestCase];
-    const createdCase = assignDisplayIds(
-      filterTestCases(
-        nextTestCases,
-        selectedMenu,
-        "",
-        IS_WORKING_FILTER_ALL,
-        versionContext
-      )
-    ).find((testCase) => testCase.uid === uid);
+    try {
+      const created = await createTestCaseApi({
+        menu: selectedMenu,
+        versionId: activeVersionId,
+        subMenu: "",
+        checkItem: "",
+        checkMethod: "",
+        checkResult: "",
+        isWorking: "O",
+        note: "",
+      });
 
-    setTestCases(nextTestCases);
-    setEditingTestCase(createdCase);
-    onRouteChange?.({ q: null, working: null }, { replace: true });
+      setEditingTestCase({
+        ...created,
+        displayId: created.id,
+      });
+      onRouteChange?.({ q: null, working: null }, { replace: true });
+    } catch {
+      alert("테스트 케이스를 추가하지 못했습니다.");
+    }
   };
 
-  const handleSaveEdit = (formData) => {
+  const handleSaveEdit = async (formData) => {
     if (!editingTestCase) {
       return;
     }
 
-    setTestCases((prev) =>
-      updateTestCase(prev, editingTestCase.uid, formData)
-    );
-    setEditingTestCase(null);
+    try {
+      await updateTestCaseApi(editingTestCase.dbId, formData);
+      setEditingTestCase(null);
+    } catch {
+      alert("테스트 케이스를 저장하지 못했습니다.");
+    }
   };
 
-  const handleDeleteByUids = (uids) => {
-    setTestCases((prev) => deleteTestCases(prev, uids));
-    setSelectedUids((prev) => {
-      const next = new Set(prev);
-      uids.forEach((uid) => next.delete(uid));
-      return next;
-    });
+  const handleDeleteByUids = async (uids) => {
+    const dbIds = testCases
+      .filter((testCase) => uids.includes(testCase.uid))
+      .map((testCase) => testCase.dbId);
 
-    if (editingTestCase && uids.includes(editingTestCase.uid)) {
-      setEditingTestCase(null);
+    try {
+      await deleteTestCasesApi(dbIds);
+      setSelectedUids((prev) => {
+        const next = new Set(prev);
+        uids.forEach((uid) => next.delete(uid));
+        return next;
+      });
+
+      if (editingTestCase && uids.includes(editingTestCase.uid)) {
+        setEditingTestCase(null);
+      }
+    } catch {
+      alert("테스트 케이스를 삭제하지 못했습니다.");
     }
   };
 
@@ -358,22 +327,14 @@ function TestCaseListPage({
         description: formData.description,
       });
 
-      if (formData.name !== versionId) {
-        setTestCases((prev) =>
-          prev.map((testCase) =>
-            testCase.versionId === versionId
-              ? { ...testCase, versionId: formData.name }
-              : testCase
-          )
+      if (formData.name !== versionId && activeVersionId === versionId) {
+        onRouteChange?.(
+          { version: formData.name, menu: selectedMenu },
+          { replace: true }
         );
-
-        if (activeVersionId === versionId) {
-          onRouteChange?.(
-            { version: formData.name, menu: selectedMenu },
-            { replace: true }
-          );
-        }
       }
+
+      await refreshTestCases();
     } catch {
       alert("버전을 수정하지 못했습니다.");
     }
@@ -388,9 +349,7 @@ function TestCaseListPage({
 
     try {
       await deleteVersionApi(currentVersion.dbId);
-      setTestCases((prev) =>
-        prev.filter((testCase) => testCase.versionId !== versionId)
-      );
+      await refreshTestCases();
 
       if (activeVersionId === versionId) {
         onRouteChange?.({ version: null, menu: TOTAL_MENU }, { replace: true });
@@ -481,7 +440,7 @@ function TestCaseListPage({
     ]);
   };
 
-  const handleAddCustomMenu = (versionId, label) => {
+  const handleAddCustomMenu = async (versionId, label) => {
     const existsInPool = [
       ...SIDEBAR_MENUS,
       ...customMenuPool.map((menu) => menu.label),
@@ -492,9 +451,9 @@ function TestCaseListPage({
       return;
     }
 
-    setCustomMenuPool((prev) => [
-      ...prev,
-      { id: createCustomMenuId(), label },
+    await setCustomMenuPool([
+      ...customMenuPool,
+      { id: `menu-${Date.now()}`, label },
     ]);
     handleInsertMenu(versionId, label);
   };
@@ -515,7 +474,7 @@ function TestCaseListPage({
     }
   };
 
-  const handleDrop = (e, dropUid) => {
+  const handleDrop = async (e, dropUid) => {
     e.preventDefault();
     e.currentTarget.classList.remove("tc-row-drop-target");
 
@@ -525,8 +484,21 @@ function TestCaseListPage({
       return;
     }
 
-    setTestCases((prev) => reorderTestCases(prev, dragId, dropUid));
+    const nextCases = reorderTestCases(testCases, dragId, dropUid);
+    const orderedIds = nextCases
+      .filter(
+        (testCase) => !activeVersionId || testCase.versionId === activeVersionId
+      )
+      .map((testCase) => Number(testCase.dbId));
+
     setDragUid(null);
+
+    try {
+      await reorderTestCasesApi(orderedIds, activeVersionId);
+    } catch {
+      await refreshTestCases();
+      alert("순서를 저장하지 못했습니다.");
+    }
   };
 
   const handleDragEnd = () => {
@@ -558,8 +530,13 @@ function TestCaseListPage({
       onMarkAllNotificationsRead={onMarkAllNotificationsRead}
       pageTitle="테스트 케이스"
     >
-      {versionsLoading ? (
-        <p className="df-page-description">버전 정보를 불러오는 중입니다...</p>
+      {versionsLoading || testCasesLoading ? (
+        <p className="df-page-description">테스트 케이스를 불러오는 중입니다...</p>
+      ) : testCasesError ? (
+        <p className="df-page-description">
+          테스트 케이스를 불러오지 못했습니다. 터미널에서 `npm run dev`를 재시작해
+          주세요.
+        </p>
       ) : (
         <>
           <div className="tc-content-card">
