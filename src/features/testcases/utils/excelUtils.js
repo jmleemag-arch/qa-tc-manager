@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { TC_MENUS } from "../constants/testCaseConstants";
+import { SIDEBAR_MENUS, TOTAL_MENU } from "../constants/testCaseConstants";
 import { formatTestCaseId } from "./testCaseUtils";
 
 const EXCEL_HEADERS = [
@@ -17,11 +17,11 @@ const EXCEL_FILE_NAME = "QA_TC_List.xlsx";
 const TOTAL_SHEET_NAME = "Total";
 
 const MENU_SHEET_NAME_MAP = {
-  "서버/단말 상태": "서버_단말 상태",
+  "서버 / 단말 상태": "서버_단말 상태",
   "진단/분석": "진단_분석",
 };
 
-const EXCEL_MENU_ORDER = [...TC_MENUS, "기타"];
+const EXCEL_MENU_ORDER = [...SIDEBAR_MENUS.filter((menu) => menu !== TOTAL_MENU), "기타"];
 
 function toSheetName(menu) {
   if (MENU_SHEET_NAME_MAP[menu]) {

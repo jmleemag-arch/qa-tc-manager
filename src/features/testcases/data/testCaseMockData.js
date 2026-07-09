@@ -2,7 +2,7 @@ export const testCases = [
   {
     uid: "tc-001",
     id: "TC-001",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "로그인 화면",
     checkItem: "유효한 계정으로 로그인 성공",
     checkMethod: "tester1 / test1234 입력 후 로그인 버튼 클릭",
@@ -14,7 +14,7 @@ export const testCases = [
   {
     uid: "tc-002",
     id: "TC-002",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "로그인 화면",
     checkItem: "잘못된 비밀번호 입력 시 로그인 실패",
     checkMethod: "tester1 / wrongpass 입력 후 로그인 버튼 클릭",
@@ -26,7 +26,7 @@ export const testCases = [
   {
     uid: "tc-003",
     id: "TC-003",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "로그인 화면",
     checkItem: "아이디 미입력 시 로그인 실패",
     checkMethod: "아이디 공란, 비밀번호 입력 후 로그인 버튼 클릭",
@@ -38,7 +38,7 @@ export const testCases = [
   {
     uid: "tc-004",
     id: "TC-004",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "로그인 화면",
     checkItem: "비밀번호 미입력 시 로그인 실패",
     checkMethod: "아이디 입력, 비밀번호 공란 후 로그인 버튼 클릭",
@@ -50,7 +50,7 @@ export const testCases = [
   {
     uid: "tc-005",
     id: "TC-005",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "로그인 화면",
     checkItem: "계정 잠금 사용자 로그인 시도",
     checkMethod: "잠금 처리된 계정으로 로그인 시도",
@@ -62,7 +62,7 @@ export const testCases = [
   {
     uid: "tc-006",
     id: "TC-006",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "세션 관리",
     checkItem: "로그아웃 후 뒤로가기 접근 확인",
     checkMethod: "로그인 후 로그아웃, 브라우저 뒤로가기 실행",
@@ -74,7 +74,7 @@ export const testCases = [
   {
     uid: "tc-007",
     id: "TC-007",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "세션 관리",
     checkItem: "로그인 상태 유지 확인",
     checkMethod: "로그인 후 새로고침",
@@ -86,7 +86,7 @@ export const testCases = [
   {
     uid: "tc-008",
     id: "TC-008",
-    menu: "접속페이지",
+    menu: "대시보드",
     subMenu: "세션 관리",
     checkItem: "세션 만료 후 접근 제한 확인",
     checkMethod: "세션 만료 후 관리 화면 URL 직접 접근",

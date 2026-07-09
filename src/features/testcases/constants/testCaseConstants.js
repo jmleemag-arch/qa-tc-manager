@@ -13,46 +13,43 @@ export const ACTIVE_HEADER_MENU = "테스트 케이스";
 
 export const TOTAL_MENU = "Total";
 
-export const FIXED_VERSION_MENUS = [TOTAL_MENU, "접속페이지"];
+export const FIXED_VERSION_MENUS = [TOTAL_MENU, "대시보드"];
 
 export const TC_MENUS = [
-  "접속페이지",
-  "대시보드",
   "장애 현황",
   "플로우 맵",
-  "서버/단말 상태",
+  "서버 / 단말 상태",
   "네트워크 노드 상태",
-  "이벤트",
+  "웹페이지 현황",
   "진단/분석",
+  "이벤트",
   "검색",
-  "서비스통계",
+  "서비스 통계",
   "설정",
 ];
 
-export const INSERTABLE_MENU_POOL = TC_MENUS.filter(
-  (menu) => !FIXED_VERSION_MENUS.includes(menu)
-);
+export const INSERTABLE_MENU_POOL = [...TC_MENUS];
 
-export const SIDEBAR_MENUS = [TOTAL_MENU, ...TC_MENUS];
+export const SIDEBAR_MENUS = [...FIXED_VERSION_MENUS, ...TC_MENUS];
 
 export const INITIAL_TEST_CASE_VERSIONS = [
   {
     id: "26.1.0",
     name: "26.1.0",
     description: "",
-    menus: [TOTAL_MENU, "접속페이지", "대시보드"],
+    menus: [TOTAL_MENU, "대시보드", "장애 현황"],
   },
   {
     id: "26.1.1",
     name: "26.1.1",
     description: "",
-    menus: [TOTAL_MENU, "접속페이지", "대시보드", "장애 현황"],
+    menus: [TOTAL_MENU, "대시보드", "장애 현황", "플로우 맵"],
   },
   {
     id: "26.2.0",
     name: "26.2.0",
     description: "",
-    menus: [TOTAL_MENU, "접속페이지", "장애 현황", "플로우 맵"],
+    menus: [TOTAL_MENU, "대시보드", "장애 현황", "플로우 맵"],
   },
 ];
 

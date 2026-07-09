@@ -111,6 +111,7 @@ function TestCaseListPage({
 
   const addableMenus = useMemo(
     () => [
+      ...FIXED_VERSION_MENUS.filter((menu) => menu !== TOTAL_MENU),
       ...TC_MENUS,
       ...customMenuPool.map((menu) => menu.label),
     ],
@@ -492,7 +493,7 @@ function TestCaseListPage({
       notifications={notifications}
       onNotificationClick={onNotificationClick}
       onMarkAllNotificationsRead={onMarkAllNotificationsRead}
-      pageTitle={pageHeading}
+      pageTitle="테스트 케이스"
     >
       <div className="tc-content-card">
         <div className="tc-page-layout">
