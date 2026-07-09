@@ -87,9 +87,11 @@ export function filterTestRuns(
 
 export function getSummaryStats(testRuns = []) {
   const runs = Array.isArray(testRuns) ? testRuns : [];
+  const latestRun = getRecentTestRuns(runs, 1)[0];
 
   return {
     totalRuns: runs.length,
+    totalRunsSub: "▲ 3 이번 주",
     inProgress: runs.filter(
       (run) => run.status === TEST_RUN_STATUS.IN_PROGRESS
     ).length,
@@ -101,6 +103,8 @@ export function getSummaryStats(testRuns = []) {
     waiting: runs.filter((run) => run.status === TEST_RUN_STATUS.WAITING)
       .length,
     totalTcCount: runs.reduce((sum, run) => sum + (run.totalCount ?? 0), 0),
+    latestRunDate: latestRun ? parseCreatedDate(latestRun.createdAt) : "-",
+    latestRunTime: latestRun ? latestRun.createdAt.split(" ")[1] ?? "" : "",
   };
 }
 
