@@ -6,6 +6,7 @@ import {
 import { isFixedVersionMenu } from "../utils/testCaseUtils";
 
 function TestCaseVersionManager({
+  inline = false,
   isOpen,
   versions,
   activeVersionId,
@@ -117,17 +118,28 @@ function TestCaseVersionManager({
 
   const handleApply = () => {
     onApplyVersion(selectedVersionId);
-    onClose();
+    if (!inline) {
+      onClose();
+    }
   };
 
   const handleApplyDefault = () => {
     onApplyVersion(null);
-    onClose();
+    if (!inline) {
+      onClose();
+    }
   };
 
-  return (
-    <div className="tc-modal-overlay">
-      <div className="tc-modal tc-manager-modal" role="dialog" aria-modal="true">
+  const managerPanel = (
+    <div
+      className={
+        inline
+          ? "tc-modal tc-manager-modal tc-manager-inline"
+          : "tc-modal tc-manager-modal"
+      }
+      role="dialog"
+      aria-modal={!inline}
+    >
         <div className="tc-modal-header">
           <div>
             <h2>버전 관리</h2>
@@ -136,6 +148,7 @@ function TestCaseVersionManager({
               구성을 관리할 수 있습니다.
             </p>
           </div>
+          {!inline ? (
           <button
             type="button"
             className="tc-modal-close-btn"
@@ -144,6 +157,7 @@ function TestCaseVersionManager({
           >
             ×
           </button>
+          ) : null}
         </div>
 
         <div className="tc-manager-body">
@@ -397,8 +411,13 @@ function TestCaseVersionManager({
           </section>
         </div>
       </div>
-    </div>
   );
+
+  if (inline) {
+    return managerPanel;
+  }
+
+  return <div className="tc-modal-overlay">{managerPanel}</div>;
 }
 
 export default TestCaseVersionManager;

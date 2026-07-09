@@ -12,7 +12,7 @@ function LoginPage({ onLogin }) {
         <h1>QA Manager</h1>
 
         <p className="login-desc">
-          내부 QA 관리도구입니다.
+          QA 테스트케이스와 결함을 관리하는 내부 QA 관리도구입니다.
         </p>
 
         <LoginForm onLogin={onLogin} />

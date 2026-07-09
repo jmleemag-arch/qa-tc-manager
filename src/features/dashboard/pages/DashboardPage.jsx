@@ -1,4 +1,5 @@
 import MainLayout from "../../../components/layout/MainLayout";
+import { MENU_IDS } from "../../../constants/appConstants";
 import { useDashboard } from "../../../hooks/useDashboard";
 import DashboardSummaryCards from "../components/DashboardSummaryCards";
 import RecentTestRunCard from "../components/RecentTestRunCard";
@@ -18,7 +19,7 @@ function DashboardPage({
     useDashboard();
 
   const handleMoveToTestRuns = () => {
-    onMenuChange("테스트 런");
+    onMenuChange(MENU_IDS.TEST_RUNS);
   };
 
   return (

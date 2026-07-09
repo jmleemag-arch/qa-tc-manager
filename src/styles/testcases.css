@@ -863,6 +863,19 @@
   max-width: 1080px;
 }
 
+.tc-manager-inline {
+  position: static;
+  width: 100%;
+  max-width: none;
+  box-shadow: none;
+}
+
+.tc-version-page .tc-manager-inline {
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
 .tc-submenu-manager {
   max-width: 780px;
 }

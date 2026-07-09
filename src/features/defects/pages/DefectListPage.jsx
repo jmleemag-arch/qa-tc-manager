@@ -14,8 +14,7 @@ function DefectListPage({
   notifications,
   onNotificationClick,
   onMarkAllNotificationsRead,
-  routeParams = {},
-  onRouteChange,
+  defectView = "overview",
 }) {
   const {
     issueVersions: apiIssueVersions,
@@ -33,8 +32,7 @@ function DefectListPage({
     refresh: refreshIssueProgress,
   } = useIssueProgress();
   const [focusedIssueVersion, setFocusedIssueVersion] = useState("");
-  const activeView =
-    routeParams.view === "new-issues" ? "new-issues" : "overview";
+  const activeView = defectView === "new-issues" ? "new-issues" : "overview";
 
   const issueVersions = useMemo(
     () =>
@@ -44,10 +42,6 @@ function DefectListPage({
       })),
     [apiIssueVersions, rowsByVersion]
   );
-
-  const handleViewChange = (view) => {
-    onRouteChange?.({ view: view === "overview" ? null : view });
-  };
 
   const handleSaveIssueRound = async (roundData, options) => {
     try {
@@ -87,26 +81,7 @@ function DefectListPage({
       onNotificationClick={onNotificationClick}
       onMarkAllNotificationsRead={onMarkAllNotificationsRead}
     >
-      <section className="tr-tab-shell df-page-shell">
-        <div className="tr-tab-bar">
-          <div className="tr-tabs">
-            <button
-              type="button"
-              className={activeView === "overview" ? "active" : ""}
-              onClick={() => handleViewChange("overview")}
-            >
-              결함 현황
-            </button>
-            <button
-              type="button"
-              className={activeView === "new-issues" ? "active" : ""}
-              onClick={() => handleViewChange("new-issues")}
-            >
-              신규 등록 이슈
-            </button>
-          </div>
-        </div>
-
+      <section className="df-page-shell">
         {activeView === "new-issues" ? (
           <NewRegisteredIssuesSection />
         ) : isOverviewLoading ? (

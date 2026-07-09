@@ -54,8 +54,88 @@
 .app-sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 16px;
   margin-top: 20px;
+}
+
+.app-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-nav-group-label {
+  margin: 0;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  text-transform: none;
+}
+
+.app-nav-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-nav-item-label {
+  display: block;
+}
+
+.app-sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app-sidebar-collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+
+.app-sidebar-collapse-icon {
+  width: 16px;
+  text-align: center;
+}
+
+.app-sidebar-collapsed {
+  width: 72px;
+  padding-inline: 10px;
+}
+
+.app-sidebar-collapsed .app-logo-text,
+.app-sidebar-collapsed .app-nav-group-label,
+.app-sidebar-collapsed .app-nav-item-label,
+.app-sidebar-collapsed .app-sidebar-collapse-label,
+.app-sidebar-collapsed .app-sidebar-user-text {
+  display: none;
+}
+
+.app-sidebar-collapsed .app-nav-item {
+  text-align: center;
+  padding-inline: 10px;
+}
+
+.app-sidebar-collapsed .app-sidebar-user {
+  justify-content: center;
+  padding-inline: 0;
 }
 
 .app-nav-item {

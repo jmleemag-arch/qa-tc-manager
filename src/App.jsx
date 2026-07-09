@@ -3,63 +3,45 @@ import LoginPage from "./features/auth/pages/LoginPage";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import DashboardPage from "./features/dashboard/pages/DashboardPage";
 import DefectListPage from "./features/defects/pages/DefectListPage";
+import DefectSearchPage from "./features/defects/pages/DefectSearchPage";
 import SettingsPage from "./features/settings/pages/SettingsPage";
 import TestCaseListPage from "./features/testcases/pages/TestCaseListPage";
 import TestRunListPage from "./features/testruns/pages/TestRunListPage";
+import VersionManagementPage from "./features/testcases/pages/VersionManagementPage";
 import SessionExpiryModal from "./features/auth/components/SessionExpiryModal";
 import { useIdleSession } from "./features/auth/hooks/useIdleSession";
 import { useNotifications } from "./hooks/useNotifications";
 import { loadAppSettings } from "./features/settings/utils/settingsStorage";
-import { APP_SIDEBAR_MENUS, PAGE_TITLES } from "./constants/appConstants";
-
-const ACTIVE_MENU_DASHBOARD = APP_SIDEBAR_MENUS[0];
-const ACTIVE_MENU_TEST_CASES = APP_SIDEBAR_MENUS[1];
-const ACTIVE_MENU_TEST_RUNS = APP_SIDEBAR_MENUS[2];
-const ACTIVE_MENU_DEFECTS = APP_SIDEBAR_MENUS[3];
-const ACTIVE_MENU_SETTINGS = APP_SIDEBAR_MENUS[5];
-
-const MENU_SLUGS = [
-  "dashboard",
-  "testcases",
-  "testruns",
-  "defects",
-  "reports",
-  "settings",
-];
-
-function getMenuSlug(menu) {
-  const menuIndex = APP_SIDEBAR_MENUS.indexOf(menu);
-  return MENU_SLUGS[menuIndex] ?? MENU_SLUGS[0];
-}
-
-function getMenuFromSlug(slug) {
-  const menuIndex = MENU_SLUGS.indexOf(slug);
-  return APP_SIDEBAR_MENUS[menuIndex] ?? ACTIVE_MENU_DASHBOARD;
-}
+import {
+  getMenuIdFromSlug,
+  getMenuSlug,
+  MENU_IDS,
+  PAGE_TITLES,
+} from "./constants/appConstants";
 
 function parseHashRoute() {
   const rawHash = window.location.hash.replace(/^#\/?/, "");
   const [rawSlug, rawQuery = ""] = rawHash.split("?");
-  const slug = rawSlug || getMenuSlug(ACTIVE_MENU_DASHBOARD);
+  const slug = rawSlug || getMenuSlug(MENU_IDS.DASHBOARD);
 
   return {
-    activeMenu: getMenuFromSlug(slug),
+    activeMenu: getMenuIdFromSlug(slug),
     routeParams: Object.fromEntries(new URLSearchParams(rawQuery).entries()),
   };
 }
 
-function buildHashRoute(menu, params = {}) {
+function buildHashRoute(menuId, params = {}) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
-      searchParams.set(key, value);
+      searchParams.set(key, String(value));
     }
   });
 
   const queryString = searchParams.toString();
 
-  return `#/${getMenuSlug(menu)}${queryString ? `?${queryString}` : ""}`;
+  return `#/${getMenuSlug(menuId)}${queryString ? `?${queryString}` : ""}`;
 }
 
 function getInitialRoute() {
@@ -68,7 +50,7 @@ function getInitialRoute() {
   }
 
   return {
-    activeMenu: ACTIVE_MENU_DASHBOARD,
+    activeMenu: MENU_IDS.DASHBOARD,
     routeParams: {},
   };
 }
@@ -115,17 +97,17 @@ function App() {
     };
   }, [activeMenu, routeParams]);
 
-  const navigateTo = (menu, params = {}, options = {}) => {
-    const nextHash = buildHashRoute(menu, params);
+  const navigateTo = (menuId, params = {}, options = {}) => {
+    const nextHash = buildHashRoute(menuId, params);
 
     if (options.replace) {
       window.history.replaceState(null, "", nextHash);
-      setRouteState({ activeMenu: menu, routeParams: params });
+      setRouteState({ activeMenu: menuId, routeParams: params });
       return;
     }
 
     if (window.location.hash === nextHash) {
-      setRouteState({ activeMenu: menu, routeParams: params });
+      setRouteState({ activeMenu: menuId, routeParams: params });
       return;
     }
 
@@ -134,12 +116,23 @@ function App() {
 
   const handleLogout = () => {
     logout();
-    navigateTo(ACTIVE_MENU_DASHBOARD, {}, { replace: true });
+    navigateTo(MENU_IDS.DASHBOARD, {}, { replace: true });
   };
 
-  const handleMenuChange = (menu) => {
+  const handleMenuChange = (menuId) => {
     recordActivity();
-    navigateTo(menu);
+
+    if (menuId === MENU_IDS.NOTIFICATIONS) {
+      navigateTo(MENU_IDS.SETTINGS, { section: "notifications" });
+      return;
+    }
+
+    if (menuId === MENU_IDS.SETTINGS) {
+      navigateTo(MENU_IDS.SETTINGS, {});
+      return;
+    }
+
+    navigateTo(menuId);
   };
 
   const handleRouteChange = (params, options = {}) => {
@@ -166,14 +159,20 @@ function App() {
     return <LoginPage onLogin={login} />;
   }
 
+  const resolvedActiveMenu =
+    activeMenu === MENU_IDS.SETTINGS &&
+    routeParams.section === "notifications"
+      ? MENU_IDS.NOTIFICATIONS
+      : activeMenu;
+
   const pageProps = {
     loginUser: authSession?.userName ?? authSession?.userId,
     onLogout: handleLogout,
-    activeMenu,
+    activeMenu: resolvedActiveMenu,
     onMenuChange: handleMenuChange,
     routeParams,
     onRouteChange: handleRouteChange,
-    pageTitle: PAGE_TITLES[activeMenu] || activeMenu,
+    pageTitle: PAGE_TITLES[resolvedActiveMenu] || resolvedActiveMenu,
     notifications,
     onNotificationClick: (notification) => {
       markNotificationRead(notification.id);
@@ -185,18 +184,33 @@ function App() {
 
   let pageContent;
 
-  if (activeMenu === ACTIVE_MENU_DASHBOARD) {
-    pageContent = <DashboardPage {...pageProps} />;
-  } else if (activeMenu === ACTIVE_MENU_TEST_CASES) {
-    pageContent = <TestCaseListPage {...pageProps} />;
-  } else if (activeMenu === ACTIVE_MENU_TEST_RUNS) {
-    pageContent = <TestRunListPage {...pageProps} />;
-  } else if (activeMenu === ACTIVE_MENU_DEFECTS) {
-    pageContent = <DefectListPage {...pageProps} />;
-  } else if (activeMenu === ACTIVE_MENU_SETTINGS) {
-    pageContent = <SettingsPage {...pageProps} />;
-  } else {
-    pageContent = <PlaceholderPage {...pageProps} />;
+  switch (activeMenu) {
+    case MENU_IDS.DASHBOARD:
+      pageContent = <DashboardPage {...pageProps} />;
+      break;
+    case MENU_IDS.VERSIONS:
+      pageContent = <VersionManagementPage {...pageProps} />;
+      break;
+    case MENU_IDS.TEST_CASES:
+      pageContent = <TestCaseListPage {...pageProps} />;
+      break;
+    case MENU_IDS.TEST_RUNS:
+      pageContent = <TestRunListPage {...pageProps} />;
+      break;
+    case MENU_IDS.DEFECTS_NEW_ISSUES:
+      pageContent = <DefectListPage {...pageProps} defectView="new-issues" />;
+      break;
+    case MENU_IDS.DEFECTS_PROGRESS:
+      pageContent = <DefectListPage {...pageProps} defectView="overview" />;
+      break;
+    case MENU_IDS.DEFECTS_SEARCH:
+      pageContent = <DefectSearchPage {...pageProps} />;
+      break;
+    case MENU_IDS.SETTINGS:
+      pageContent = <SettingsPage {...pageProps} />;
+      break;
+    default:
+      pageContent = <PlaceholderPage {...pageProps} />;
   }
 
   return (
