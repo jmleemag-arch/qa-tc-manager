@@ -18,19 +18,35 @@ export function isFixedVersionMenu(menu) {
   return FIXED_VERSION_MENUS.includes(menu);
 }
 
+export function isTestCaseVisibleInVersion(testCase, versionId, versionMenus) {
+  if (testCase.versionId === versionId) {
+    return true;
+  }
+
+  if (!testCase.versionId && versionMenus.includes(testCase.menu)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function filterTestCases(
   testCases,
   selectedMenu,
   searchText,
   workingFilter = IS_WORKING_FILTER_ALL,
-  versionId = null
+  versionContext = null
 ) {
   const normalizedSearch = searchText.toLowerCase().trim();
 
   return testCases.filter((tc) => {
-    const isVersionMatched = versionId
-      ? tc.versionId === versionId
-      : !tc.versionId;
+    const isVersionMatched = versionContext
+      ? isTestCaseVisibleInVersion(
+          tc,
+          versionContext.versionId,
+          versionContext.menus
+        )
+      : true;
 
     const isMenuMatched =
       !selectedMenu ||

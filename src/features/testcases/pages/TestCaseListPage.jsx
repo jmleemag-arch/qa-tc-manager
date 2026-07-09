@@ -120,6 +120,17 @@ function TestCaseListPage({
 
   const pageHeading = activeVersion?.name ?? "테스트 케이스";
 
+  const versionContext = useMemo(() => {
+    if (!activeVersionId || !activeVersion) {
+      return null;
+    }
+
+    return {
+      versionId: activeVersionId,
+      menus: activeVersion.menus ?? [...FIXED_VERSION_MENUS],
+    };
+  }, [activeVersionId, activeVersion]);
+
   useEffect(() => {
     window.localStorage.setItem(
       TEST_CASE_STORAGE_KEY,
@@ -154,9 +165,9 @@ function TestCaseListPage({
         selectedMenu,
         searchText,
         workingFilter,
-        activeVersionId
+        versionContext
       ),
-    [testCases, selectedMenu, searchText, workingFilter, activeVersionId]
+    [testCases, selectedMenu, searchText, workingFilter, versionContext]
   );
 
   const displayTestCases = useMemo(
@@ -218,7 +229,7 @@ function TestCaseListPage({
         selectedMenu,
         searchText,
         workingFilter,
-        activeVersionId
+        versionContext
       )
     ).find((testCase) => testCase.uid === uid);
 
@@ -275,7 +286,7 @@ function TestCaseListPage({
       TOTAL_MENU,
       "",
       IS_WORKING_FILTER_ALL,
-      activeVersionId
+      versionContext
     );
 
     if (exportCases.length === 0) {
