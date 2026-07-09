@@ -7,6 +7,7 @@ import "./styles/auth.css";
 import "./styles/testcases.css";
 import "./styles/testRuns.css";
 import "./styles/dashboard.css";
+import "./styles/defects.css";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
