@@ -21,8 +21,44 @@ import {
 
 function parseHashRoute() {
   const rawHash = window.location.hash.replace(/^#\/?/, "");
-  const [rawSlug, rawQuery = ""] = rawHash.split("?");
+  return parseRouteSlug(rawHash);
+}
+
+function parsePathRoute() {
+  const rawPath = window.location.pathname.replace(/^\/?/, "");
+  const rawSearch = window.location.search.replace(/^\?/, "");
+  return parseRouteSlug(`${rawPath}${rawSearch ? `?${rawSearch}` : ""}`);
+}
+
+function parseCurrentRoute() {
+  if (window.location.hash) {
+    return parseHashRoute();
+  }
+
+  if (window.location.pathname !== "/") {
+    return parsePathRoute();
+  }
+
+  return {
+    activeMenu: MENU_IDS.DASHBOARD,
+    routeParams: {},
+  };
+}
+
+function parseRouteSlug(rawRoute) {
+  const [rawSlug, rawQuery = ""] = rawRoute.split("?");
   const slug = rawSlug || getMenuSlug(MENU_IDS.DASHBOARD);
+  const versionTestCasesMatch = slug.match(/^versions\/([^/]+)\/test-cases$/);
+
+  if (versionTestCasesMatch) {
+    return {
+      activeMenu: MENU_IDS.TEST_CASES,
+      routeParams: {
+        ...Object.fromEntries(new URLSearchParams(rawQuery).entries()),
+        versionId: versionTestCasesMatch[1],
+      },
+    };
+  }
 
   return {
     activeMenu: getMenuIdFromSlug(slug),
@@ -30,10 +66,20 @@ function parseHashRoute() {
   };
 }
 
-function buildHashRoute(menuId, params = {}) {
+function buildRoute(menuId, params = {}) {
   const searchParams = new URLSearchParams();
+  const routeParams = { ...params };
 
-  Object.entries(params).forEach(([key, value]) => {
+  let slug = getMenuSlug(menuId);
+  let routePrefix = "#/";
+
+  if (menuId === MENU_IDS.TEST_CASES && routeParams.versionId) {
+    slug = `versions/${routeParams.versionId}/test-cases`;
+    routePrefix = "/";
+    delete routeParams.versionId;
+  }
+
+  Object.entries(routeParams).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
       searchParams.set(key, String(value));
     }
@@ -41,18 +87,11 @@ function buildHashRoute(menuId, params = {}) {
 
   const queryString = searchParams.toString();
 
-  return `#/${getMenuSlug(menuId)}${queryString ? `?${queryString}` : ""}`;
+  return `${routePrefix}${slug}${queryString ? `?${queryString}` : ""}`;
 }
 
 function getInitialRoute() {
-  if (window.location.hash) {
-    return parseHashRoute();
-  }
-
-  return {
-    activeMenu: MENU_IDS.DASHBOARD,
-    routeParams: {},
-  };
+  return parseCurrentRoute();
 }
 
 function App() {
@@ -78,40 +117,56 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setRouteState(parseHashRoute());
+    const handleRouteChange = () => {
+      setRouteState(parseCurrentRoute());
     };
 
-    window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("hashchange", handleRouteChange);
+    window.addEventListener("popstate", handleRouteChange);
 
-    if (!window.location.hash) {
+    if (!window.location.hash && window.location.pathname === "/") {
       window.history.replaceState(
         null,
         "",
-        buildHashRoute(activeMenu, routeParams)
+        buildRoute(activeMenu, routeParams)
       );
     }
 
     return () => {
-      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("hashchange", handleRouteChange);
+      window.removeEventListener("popstate", handleRouteChange);
     };
   }, [activeMenu, routeParams]);
 
   const navigateTo = (menuId, params = {}, options = {}) => {
-    const nextHash = buildHashRoute(menuId, params);
+    const nextRoute = buildRoute(menuId, params);
 
     if (options.replace) {
-      window.history.replaceState(null, "", nextHash);
+      window.history.replaceState(null, "", nextRoute);
       setRouteState({ activeMenu: menuId, routeParams: params });
       return;
     }
 
-    if (window.location.hash === nextHash) {
+    if (
+      nextRoute.startsWith("#") &&
+      window.location.hash === nextRoute
+    ) {
       setRouteState({ activeMenu: menuId, routeParams: params });
       return;
     }
 
-    window.location.hash = nextHash;
+    if (!nextRoute.startsWith("#")) {
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+
+      if (currentPath !== nextRoute || window.location.hash) {
+        window.history.pushState(null, "", nextRoute);
+      }
+
+      setRouteState({ activeMenu: menuId, routeParams: params });
+      return;
+    }
+
+    window.location.hash = nextRoute;
   };
 
   const handleLogout = () => {

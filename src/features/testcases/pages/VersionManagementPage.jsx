@@ -196,13 +196,13 @@ function VersionManagementPage({
 
   const handleApplyVersion = (versionId) => {
     if (!versionId) {
-      onRouteChange?.({ version: null });
-      onMenuChange?.(MENU_IDS.TEST_CASES);
+      window.history.pushState(null, "", "/testcases");
+      window.dispatchEvent(new PopStateEvent("popstate"));
       return;
     }
 
-    onRouteChange?.({ version: versionId });
-    onMenuChange?.(MENU_IDS.TEST_CASES);
+    window.history.pushState(null, "", `/versions/${versionId}/test-cases`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
   };
 
   return (

@@ -14,6 +14,25 @@ const VERSION_INCLUDE = {
 
 const FIXED_SUBMENUS = ["Total", "대시보드"];
 
+async function findCopySourceVersion() {
+  return prisma.version.findFirst({
+    where: {
+      testCases: {
+        some: {},
+      },
+    },
+    include: {
+      submenus: {
+        orderBy: { sortOrder: "asc" },
+      },
+      testCases: {
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      },
+    },
+    orderBy: [{ year: "desc" }, { versionName: "desc" }, { id: "desc" }],
+  });
+}
+
 async function getYearBase() {
   const setting = await prisma.appSetting.findUnique({
     where: { key: "version_policy" },
@@ -91,6 +110,8 @@ export async function createVersion(payload) {
 
   const year = payload.year ?? parseVersionYear(versionName, yearBase);
   const status = normalizeVersionStatus(payload.status);
+  const copySourceVersion =
+    payload.copyTestCases === false ? null : await findCopySourceVersion();
 
   const version = await prisma.version.create({
     data: {
@@ -104,17 +125,37 @@ export async function createVersion(payload) {
     include: VERSION_INCLUDE,
   });
 
-  const defaultMenus = FIXED_SUBMENUS;
+  const defaultMenus =
+    copySourceVersion?.submenus?.length > 0
+      ? copySourceVersion.submenus.map((submenu) => submenu.name)
+      : FIXED_SUBMENUS;
 
   await prisma.submenu.createMany({
     data: defaultMenus.map((name, index) => ({
       versionId: version.id,
       name,
-      isDefault: true,
+      isDefault: FIXED_SUBMENUS.includes(name),
       sortOrder: index,
       isActive: true,
     })),
   });
+
+  if (copySourceVersion?.testCases?.length > 0) {
+    await prisma.testCase.createMany({
+      data: copySourceVersion.testCases.map((testCase, index) => ({
+        versionId: version.id,
+        caseCode: testCase.caseCode,
+        menu: testCase.menu,
+        submenu: testCase.submenu,
+        checkItem: testCase.checkItem,
+        checkMethod: testCase.checkMethod,
+        expectedResult: testCase.expectedResult,
+        actualResult: testCase.actualResult,
+        note: testCase.note,
+        sortOrder: testCase.sortOrder ?? index,
+      })),
+    });
+  }
 
   return getVersionById(version.id);
 }

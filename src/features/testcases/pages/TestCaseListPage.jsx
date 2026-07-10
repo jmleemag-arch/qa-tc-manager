@@ -39,6 +39,7 @@ function TestCaseListPage({
   routeParams = {},
   onRouteChange,
 }) {
+  const activeVersionDbId = routeParams.versionId ?? null;
   const {
     testCaseVersions: versions,
     loading: versionsLoading,
@@ -47,6 +48,10 @@ function TestCaseListPage({
     deleteVersion: deleteVersionApi,
     updateSubmenus,
   } = useVersions();
+  const selectedVersionDbId =
+    versions.length > 0
+      ? Number(activeVersionDbId ?? versions[0]?.dbId)
+      : undefined;
   const {
     testCases,
     loading: testCasesLoading,
@@ -56,7 +61,7 @@ function TestCaseListPage({
     deleteTestCases: deleteTestCasesApi,
     reorderTestCases: reorderTestCasesApi,
     refresh: refreshTestCases,
-  } = useTestCases();
+  } = useTestCases(selectedVersionDbId);
   const { customMenuPool, setCustomMenuPool } = useCustomMenuPool();
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(true);
   const [selectedUids, setSelectedUids] = useState(new Set());
@@ -64,12 +69,13 @@ function TestCaseListPage({
   const [editingTestCase, setEditingTestCase] = useState(null);
   const [isVersionManagerOpen, setIsVersionManagerOpen] = useState(false);
   const isDraggingRef = useRef(false);
-  const activeVersionId = routeParams.version ?? null;
   const requestedMenu = routeParams.menu ?? TOTAL_MENU;
   const searchText = routeParams.q ?? "";
   const workingFilter = routeParams.working ?? IS_WORKING_FILTER_ALL;
 
-  const activeVersion = versions.find((version) => version.id === activeVersionId);
+  const activeVersion = versions.find(
+    (version) => Number(version.dbId) === Number(selectedVersionDbId)
+  );
 
   const sidebarMenus = useMemo(() => {
     if (!activeVersion) {
@@ -95,15 +101,15 @@ function TestCaseListPage({
   const pageHeading = activeVersion?.name ?? "테스트 케이스";
 
   const versionContext = useMemo(() => {
-    if (!activeVersionId || !activeVersion) {
+    if (!selectedVersionDbId || !activeVersion) {
       return null;
     }
 
     return {
-      versionId: activeVersionId,
+      versionId: activeVersion.id,
       menus: activeVersion.menus ?? [...FIXED_VERSION_MENUS],
     };
-  }, [activeVersionId, activeVersion]);
+  }, [selectedVersionDbId, activeVersion]);
 
   const filteredTestCases = useMemo(
     () =>
@@ -166,7 +172,7 @@ function TestCaseListPage({
     try {
       const created = await createTestCaseApi({
         menu: selectedMenu,
-        versionId: activeVersionId,
+        versionId: selectedVersionDbId,
         subMenu: "",
         checkItem: "",
         checkMethod: "",
@@ -276,7 +282,7 @@ function TestCaseListPage({
   const handleApplyVersion = (versionId) => {
     setSelectedUids(new Set());
     onRouteChange?.({
-      version: versionId,
+      versionId,
       menu: TOTAL_MENU,
       q: null,
       working: null,
@@ -327,9 +333,9 @@ function TestCaseListPage({
         description: formData.description,
       });
 
-      if (formData.name !== versionId && activeVersionId === versionId) {
+      if (formData.name !== versionId && activeVersion?.id === versionId) {
         onRouteChange?.(
-          { version: formData.name, menu: selectedMenu },
+          { versionId: currentVersion.dbId, menu: selectedMenu },
           { replace: true }
         );
       }
@@ -351,8 +357,8 @@ function TestCaseListPage({
       await deleteVersionApi(currentVersion.dbId);
       await refreshTestCases();
 
-      if (activeVersionId === versionId) {
-        onRouteChange?.({ version: null, menu: TOTAL_MENU }, { replace: true });
+      if (activeVersion?.id === versionId) {
+        onRouteChange?.({ versionId: null, menu: TOTAL_MENU }, { replace: true });
       }
     } catch {
       alert("버전을 삭제하지 못했습니다.");
@@ -405,7 +411,7 @@ function TestCaseListPage({
 
     persistMenus(versionId, nextMenus);
 
-    if (activeVersionId === versionId && selectedMenu === menuName) {
+    if (activeVersion?.id === versionId && selectedMenu === menuName) {
       onRouteChange?.({ menu: TOTAL_MENU }, { replace: true });
     }
   };
@@ -487,14 +493,14 @@ function TestCaseListPage({
     const nextCases = reorderTestCases(testCases, dragId, dropUid);
     const orderedIds = nextCases
       .filter(
-        (testCase) => !activeVersionId || testCase.versionId === activeVersionId
+        (testCase) => !activeVersion || testCase.versionId === activeVersion.id
       )
       .map((testCase) => Number(testCase.dbId));
 
     setDragUid(null);
 
     try {
-      await reorderTestCasesApi(orderedIds, activeVersionId);
+      await reorderTestCasesApi(orderedIds, selectedVersionDbId);
     } catch {
       await refreshTestCases();
       alert("순서를 저장하지 못했습니다.");
@@ -600,7 +606,7 @@ function TestCaseListPage({
           <TestCaseVersionManager
             isOpen={isVersionManagerOpen}
             versions={versions}
-            activeVersionId={activeVersionId}
+            activeVersionId={activeVersion?.id ?? null}
             customMenuPool={customMenuPool}
             onClose={() => setIsVersionManagerOpen(false)}
             onApplyVersion={handleApplyVersion}

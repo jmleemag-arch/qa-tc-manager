@@ -7,6 +7,7 @@ import {
   updateVersion,
   updateVersionSubmenus,
 } from "../services/versionService.js";
+import { listTestCases } from "../services/testCaseService.js";
 
 const router = Router();
 
@@ -17,6 +18,18 @@ router.get("/", async (req, res, next) => {
     });
 
     res.json({ data: versions });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:id/test-cases", async (req, res, next) => {
+  try {
+    const data = await listTestCases({
+      versionId: req.params.id,
+    });
+
+    res.json({ data });
   } catch (error) {
     next(error);
   }

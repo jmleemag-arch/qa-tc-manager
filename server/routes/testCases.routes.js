@@ -14,11 +14,17 @@ const router = Router();
 router.get("/", async (req, res, next) => {
   try {
     const data = await listTestCases({
+      versionId: req.query.versionId,
       versionName: req.query.versionName ?? req.query.version,
     });
 
     res.json({ data });
   } catch (error) {
+    if (error.message === "VERSION_REQUIRED") {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+
     next(error);
   }
 });
@@ -38,7 +44,10 @@ router.put("/reorder", async (req, res, next) => {
 
 router.post("/bulk-delete", async (req, res, next) => {
   try {
-    const count = await bulkDeleteTestCases(req.body?.ids ?? []);
+    const count = await bulkDeleteTestCases(req.body?.ids ?? [], {
+      versionName:
+        req.body?.versionId ?? req.body?.versionName ?? req.body?.version,
+    });
     res.json({ data: { count } });
   } catch (error) {
     next(error);
@@ -70,6 +79,11 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
+    if (error.message === "VERSION_REQUIRED") {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+
     if (error.code === "P2002") {
       res.status(409).json({ error: "TEST_CASE_ALREADY_EXISTS" });
       return;
@@ -96,7 +110,9 @@ router.patch("/:id", async (req, res, next) => {
 
 router.delete("/:id", async (req, res, next) => {
   try {
-    const deleted = await deleteTestCase(req.params.id);
+    const deleted = await deleteTestCase(req.params.id, {
+      versionName: req.query.versionId ?? req.query.versionName ?? req.query.version,
+    });
 
     if (!deleted) {
       res.status(404).json({ error: "TEST_CASE_NOT_FOUND" });

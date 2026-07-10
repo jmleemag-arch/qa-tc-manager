@@ -19,12 +19,33 @@ async function resolveVersionId(versionName) {
     return null;
   }
 
+  const numericVersionId = Number(versionName);
+
+  if (Number.isInteger(numericVersionId)) {
+    const version = await prisma.version.findUnique({
+      where: { id: numericVersionId },
+      select: { id: true },
+    });
+
+    return version?.id ?? null;
+  }
+
   const version = await prisma.version.findUnique({
     where: { versionName: String(versionName) },
     select: { id: true },
   });
 
   return version?.id ?? null;
+}
+
+async function resolveRequiredVersionId(versionName) {
+  const versionId = await resolveVersionId(versionName);
+
+  if (!versionId) {
+    throw new Error("VERSION_REQUIRED");
+  }
+
+  return versionId;
 }
 
 async function generateCaseCode(versionId) {
@@ -46,13 +67,16 @@ async function generateCaseCode(versionId) {
   return `TC-${String(maxSequence + 1).padStart(3, "0")}`;
 }
 
-export async function listTestCases({ versionName } = {}) {
-  const versionId = versionName ? await resolveVersionId(versionName) : undefined;
+export async function listTestCases({ versionName, versionId: versionIdParam } = {}) {
+  const versionIdentifier = versionIdParam ?? versionName;
+  const versionId = versionIdentifier
+    ? await resolveVersionId(versionIdentifier)
+    : undefined;
   const where = {};
 
-  if (versionName && versionId) {
+  if (versionIdentifier && versionId) {
     where.versionId = versionId;
-  } else if (versionName && !versionId) {
+  } else if (versionIdentifier && !versionId) {
     return [];
   }
 
@@ -80,7 +104,7 @@ export async function getTestCaseById(id) {
 
 export async function createTestCase(payload) {
   const versionName = payload.versionId ?? payload.versionName ?? null;
-  const versionId = await resolveVersionId(versionName);
+  const versionId = await resolveRequiredVersionId(versionName);
   const createData = toTestCaseCreateData(payload, versionId);
 
   if (!createData.menu) {
@@ -95,7 +119,7 @@ export async function createTestCase(payload) {
 
   const caseCode =
     String(payload.id ?? payload.caseCode ?? "").trim() ||
-    (versionId ? await generateCaseCode(versionId) : await generateCaseCode(null));
+    (await generateCaseCode(versionId));
 
   const record = await prisma.testCase.create({
     data: {
@@ -110,11 +134,18 @@ export async function createTestCase(payload) {
 }
 
 export async function updateTestCase(id, payload) {
+  const scopedVersionName = payload.versionName ?? payload.versionId ?? null;
+  const scopedVersionId = scopedVersionName
+    ? await resolveVersionId(scopedVersionName)
+    : null;
   const existing = await prisma.testCase.findUnique({
     where: { id: Number(id) },
   });
 
-  if (!existing) {
+  if (
+    !existing ||
+    (scopedVersionName && existing.versionId !== scopedVersionId)
+  ) {
     return null;
   }
 
@@ -127,12 +158,13 @@ export async function updateTestCase(id, payload) {
   return toTestCaseResponse(record);
 }
 
-export async function deleteTestCase(id) {
+export async function deleteTestCase(id, { versionName } = {}) {
+  const scopedVersionId = versionName ? await resolveVersionId(versionName) : null;
   const existing = await prisma.testCase.findUnique({
     where: { id: Number(id) },
   });
 
-  if (!existing) {
+  if (!existing || (versionName && existing.versionId !== scopedVersionId)) {
     return false;
   }
 
@@ -143,8 +175,9 @@ export async function deleteTestCase(id) {
   return true;
 }
 
-export async function bulkDeleteTestCases(ids = []) {
+export async function bulkDeleteTestCases(ids = [], { versionName } = {}) {
   const numericIds = ids.map((id) => Number(id)).filter((id) => Number.isFinite(id));
+  const scopedVersionId = versionName ? await resolveVersionId(versionName) : null;
 
   if (numericIds.length === 0) {
     return 0;
@@ -155,6 +188,7 @@ export async function bulkDeleteTestCases(ids = []) {
       id: {
         in: numericIds,
       },
+      ...(versionName ? { versionId: scopedVersionId } : {}),
     },
   });
 
@@ -162,13 +196,13 @@ export async function bulkDeleteTestCases(ids = []) {
 }
 
 export async function reorderTestCases({ versionName, orderedIds = [] }) {
-  const versionId = await resolveVersionId(versionName);
+  const versionId = await resolveRequiredVersionId(versionName);
   const numericIds = orderedIds.map((id) => Number(id)).filter((id) => Number.isFinite(id));
 
   await prisma.$transaction(
     numericIds.map((id, index) =>
-      prisma.testCase.update({
-        where: { id },
+      prisma.testCase.updateMany({
+        where: { id, versionId },
         data: { sortOrder: index },
       })
     )

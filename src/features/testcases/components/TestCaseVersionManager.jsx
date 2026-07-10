@@ -145,7 +145,7 @@ function TestCaseVersionManager({
   };
 
   const handleApply = () => {
-    onApplyVersion(selectedVersionId);
+    onApplyVersion(selectedVersion?.dbId ?? null);
     if (!inline) {
       onClose();
     }

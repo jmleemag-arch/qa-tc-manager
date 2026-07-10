@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import testCaseApi from "../services/testCaseApi.js";
 
-export function useTestCases(versionName = null) {
+export function useTestCases(versionId = null) {
   const [testCases, setTestCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
+    if (versionId === undefined) {
+      setTestCases([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
 
     try {
       const response = await testCaseApi.list(
-        versionName ? { versionName } : {}
+        versionId ? { versionId } : {}
       );
       setTestCases(response.data ?? []);
       setError(null);
@@ -21,7 +28,7 @@ export function useTestCases(versionName = null) {
     } finally {
       setLoading(false);
     }
-  }, [versionName]);
+  }, [versionId]);
 
   useEffect(() => {
     refresh();
@@ -38,11 +45,14 @@ export function useTestCases(versionName = null) {
 
   const updateTestCase = useCallback(
     async (id, payload) => {
-      const response = await testCaseApi.update(id, payload);
+      const response = await testCaseApi.update(id, {
+        ...payload,
+        versionId,
+      });
       await refresh();
       return response.data;
     },
-    [refresh]
+    [refresh, versionId]
   );
 
   const deleteTestCases = useCallback(
@@ -50,26 +60,26 @@ export function useTestCases(versionName = null) {
       const numericIds = ids.map((id) => Number(id)).filter((id) => Number.isFinite(id));
 
       if (numericIds.length === 1) {
-        await testCaseApi.remove(numericIds[0]);
+        await testCaseApi.remove(numericIds[0], { versionId });
       } else if (numericIds.length > 1) {
-        await testCaseApi.bulkDelete(numericIds);
+        await testCaseApi.bulkDelete(numericIds, { versionId });
       }
 
       await refresh();
     },
-    [refresh]
+    [refresh, versionId]
   );
 
   const reorderTestCases = useCallback(
-    async (orderedIds, reorderVersionName = versionName) => {
+    async (orderedIds, reorderVersionId = versionId) => {
       const response = await testCaseApi.reorder({
-        versionName: reorderVersionName,
+        versionId: reorderVersionId,
         orderedIds,
       });
       setTestCases(response.data ?? []);
       return response.data;
     },
-    [versionName]
+    [versionId]
   );
 
   return {

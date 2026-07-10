@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/versions/:versionId/test-cases",
+      "destination": "/index.html"
+    }
+  ]
+}
