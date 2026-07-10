@@ -49,10 +49,9 @@ function TestCaseListPage({
     deleteVersion: deleteVersionApi,
     updateSubmenus,
   } = useVersions();
-  const selectedVersionDbId =
-    versions.length > 0
-      ? Number(activeVersionDbId ?? versions[0]?.dbId)
-      : undefined;
+  const selectedVersionDbId = activeVersionDbId
+    ? Number(activeVersionDbId)
+    : null;
   const {
     testCases,
     loading: testCasesLoading,

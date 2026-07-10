@@ -28,7 +28,7 @@ function TestCaseVersionManager({
   const [editingName, setEditingName] = useState("");
   const [editingDescription, setEditingDescription] = useState("");
   const [selectedVersionId, setSelectedVersionId] = useState(
-    activeVersionId ?? versions[0]?.id ?? null
+    activeVersionId ?? null
   );
   const [newCustomMenuName, setNewCustomMenuName] = useState("");
 
