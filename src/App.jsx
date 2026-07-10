@@ -8,6 +8,7 @@ import SettingsPage from "./features/settings/pages/SettingsPage";
 import TestCaseListPage from "./features/testcases/pages/TestCaseListPage";
 import TestRunListPage from "./features/testruns/pages/TestRunListPage";
 import VersionManagementPage from "./features/testcases/pages/VersionManagementPage";
+import NoticeListPage from "./features/notices/pages/NoticeListPage";
 import SessionExpiryModal from "./features/auth/components/SessionExpiryModal";
 import { useIdleSession } from "./features/auth/hooks/useIdleSession";
 import { useNotifications } from "./hooks/useNotifications";
@@ -222,9 +223,11 @@ function App() {
 
   const pageProps = {
     loginUser: authSession?.userName ?? authSession?.userId,
+    authUserId: authSession?.userId,
     onLogout: handleLogout,
     activeMenu: resolvedActiveMenu,
     onMenuChange: handleMenuChange,
+    navigateToMenu: navigateTo,
     routeParams,
     onRouteChange: handleRouteChange,
     pageTitle: PAGE_TITLES[resolvedActiveMenu] || resolvedActiveMenu,
@@ -263,6 +266,9 @@ function App() {
       break;
     case MENU_IDS.SETTINGS:
       pageContent = <SettingsPage {...pageProps} />;
+      break;
+    case MENU_IDS.NOTICES:
+      pageContent = <NoticeListPage {...pageProps} />;
       break;
     default:
       pageContent = <PlaceholderPage {...pageProps} />;

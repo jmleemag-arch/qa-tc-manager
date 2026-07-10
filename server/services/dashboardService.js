@@ -1,222 +1,493 @@
+import XLSX from "xlsx";
 import { prisma } from "../db.js";
-import {
-  computeTestRunStats,
-  formatRunCreatedAt,
-  formatRunDisplayId,
-  toTestRunItemResponse,
-} from "./testRunMapper.js";
+import { formatDateOnly } from "../utils/weekUtils.js";
 
-const STATUS_COLORS = {
-  completed: "#22c55e",
-  inProgress: "#3b82f6",
-  failed: "#ef4444",
-  waiting: "#94a3b8",
-};
+import { formatRunDisplayId } from "./testRunMapper.js";
 
-function formatDelta(current, previous) {
-  const diff = current - previous;
+const DASHBOARD_LIMIT = 5;
+const COMPLETED_RESULTS = new Set(["O", "X", "BLOCK", "N/A"]);
 
-  if (diff === 0) {
-    return "변동 없음";
-  }
-
-  const sign = diff > 0 ? "▲" : "▼";
-  return `${sign} ${Math.abs(diff)} 지난주 대비`;
-}
-
-function formatPercent(value, total) {
-  if (!total) {
-    return "0%";
-  }
-
-  return `${((value / total) * 100).toFixed(1)}%`;
-}
-
-function getWeekAgoDate() {
-  const date = new Date();
-  date.setDate(date.getDate() - 7);
-  return date;
-}
-
-function countResultBuckets(items = []) {
-  return items.reduce(
-    (counts, item) => {
-      const result = item.result ?? "NT";
-
-      if (result === "O") {
-        counts.passCount += 1;
-      } else if (result === "X" || result === "BLOCK") {
-        counts.failCount += 1;
-      } else {
-        counts.emptyCount += 1;
-      }
-
-      return counts;
-    },
-    { passCount: 0, failCount: 0, emptyCount: 0 }
+function isActiveVersion(version) {
+  const status = String(version.status ?? "").toLowerCase();
+  return (
+    status.includes("active") ||
+    status.includes("progress") ||
+    status.includes("활성") ||
+    status.includes("진행")
   );
 }
 
-function mapRunStatusKey(status) {
-  switch (status) {
-    case "완료":
-      return "completed";
-    case "진행 중":
-      return "inProgress";
-    case "실패":
-      return "failed";
-    default:
-      return "waiting";
+function toDateTime(value) {
+  if (!value) {
+    return "";
   }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-export async function getDashboardStats() {
-  const weekAgo = getWeekAgoDate();
+function toRelativeDay(value) {
+  const date = new Date(value);
 
-  const [
-    totalTestCases,
-    testCasesLastWeek,
-    totalTestRuns,
-    testRunsLastWeek,
-    totalDefects,
-    defectsLastWeek,
-    runItems,
-    recentRuns,
-  ] = await Promise.all([
-    prisma.testCase.count(),
-    prisma.testCase.count({
-      where: { createdAt: { gte: weekAgo } },
-    }),
-    prisma.testRun.count(),
-    prisma.testRun.count({
-      where: { createdAt: { gte: weekAgo } },
-    }),
-    prisma.issue.count(),
-    prisma.issue.count({
-      where: { createdOn: { gte: weekAgo } },
-    }),
-    prisma.testRunItem.findMany({
-      select: { result: true },
-    }),
-    prisma.testRun.findMany({
-      include: {
-        version: { select: { versionName: true } },
-        items: { include: { testCase: true }, orderBy: { id: "asc" } },
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const startOfDate = new Date(date);
+  startOfDate.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor(
+    (startOfToday.getTime() - startOfDate.getTime()) / 86400000
+  );
+
+  if (diffDays <= 0) {
+    return "오늘";
+  }
+
+  return `${diffDays}일 전`;
+}
+
+function toVersionResponse(version) {
+  if (!version) {
+    return null;
+  }
+
+  return {
+    id: version.id,
+    versionName: version.versionName,
+    status: version.status,
+    startDate: version.startDate ? formatDateOnly(version.startDate) : "",
+    endDate: version.endDate ? formatDateOnly(version.endDate) : "",
+  };
+}
+
+function pickCurrentVersion(versions, versionId) {
+  const requestedId = Number(versionId);
+
+  if (Number.isFinite(requestedId)) {
+    const requested = versions.find((version) => version.id === requestedId);
+
+    if (requested) {
+      return requested;
+    }
+  }
+
+  return (
+    versions.find(isActiveVersion) ??
+    versions[0] ??
+    null
+  );
+}
+
+function normalizeRunStatus(status, progress) {
+  const rawStatus = String(status ?? "");
+
+  if (progress >= 100 || rawStatus.includes("완료")) {
+    return "완료";
+  }
+
+  if (rawStatus.includes("중단") || rawStatus.toLowerCase().includes("stop")) {
+    return "중단";
+  }
+
+  if (progress > 0 || rawStatus.includes("진행")) {
+    return "진행 중";
+  }
+
+  return "준비";
+}
+
+function toRunResponse(run, sequence) {
+  const totalCount = run.items.length;
+  const completedCount = run.items.filter((item) =>
+    COMPLETED_RESULTS.has(String(item.result ?? ""))
+  ).length;
+  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const lastExecutedAt =
+    run.items
+      .map((item) => item.executedAt)
+      .filter(Boolean)
+      .sort((left, right) => right - left)[0] ??
+    run.completedAt ??
+    run.startedAt ??
+    run.createdAt;
+
+  return {
+    id: run.id,
+    runId: formatRunDisplayId(sequence, new Date(run.createdAt).getFullYear()),
+    name: run.runName,
+    versionName: run.version?.versionName ?? "",
+    progress,
+    status: normalizeRunStatus(run.status, progress),
+    lastExecutedAt: toDateTime(lastExecutedAt),
+  };
+}
+
+function getIssueStatusKey(issue) {
+  const status = String(issue.redmineStatus ?? "").toLowerCase();
+
+  if (status.includes("closed") || status.includes("종료")) {
+    return "closed";
+  }
+
+  if (status.includes("retest") || status.includes("재검증")) {
+    return "retest";
+  }
+
+  if (status.includes("resolved") || status.includes("해결")) {
+    return "resolved";
+  }
+
+  if (status.includes("progress") || status.includes("진행")) {
+    return "inProgress";
+  }
+
+  return "new";
+}
+
+function toIssueResponse(issue) {
+  return {
+    id: issue.id,
+    issueId: issue.redmineIssueId ? `#${issue.redmineIssueId}` : `#${issue.id}`,
+    status: issue.redmineStatus ?? "신규",
+    title: issue.title,
+    registeredAt: formatDateOnly(issue.createdOn),
+    redmineUrl: issue.redmineUrl ?? "",
+    redmineError: issue.redmineError ?? "",
+  };
+}
+
+function getRoundStatus(round) {
+  if (round.status?.includes("완료")) {
+    return "작성 완료";
+  }
+
+  if (
+    round.total !== null ||
+    round.inProgress !== null ||
+    round.newCount !== null ||
+    round.status?.includes("작성")
+  ) {
+    return "작성 중";
+  }
+
+  return "미작성";
+}
+
+function toWeeklyReportResponse(round) {
+  const thursday = new Date(round.thursdayDate);
+  const start = new Date(thursday);
+  start.setDate(thursday.getDate() - 3);
+  const end = new Date(thursday);
+  end.setDate(thursday.getDate() + 3);
+
+  return {
+    id: round.id,
+    label: `${round.month}월 ${round.weekOfMonth}주차`,
+    period: `${formatDateOnly(start)} ~ ${formatDateOnly(end)}`,
+    status: getRoundStatus(round),
+    createdAt: formatDateOnly(round.createdAt),
+  };
+}
+
+function toNoticeResponse(notice) {
+  return {
+    id: notice.id,
+    category: notice.category,
+    title: notice.title,
+    content: notice.content ?? "",
+    createdBy: notice.createdBy ?? "",
+    createdAt: formatDateOnly(notice.createdAt),
+  };
+}
+
+const NOTIFICATION_KIND_LABELS = {
+  mention: "멘션",
+  assignee: "담당자 지정",
+  issue_registered: "신규 등록",
+  test_run_complete: "테스트 런 완료",
+  version_release: "릴리스",
+  status_change: "상태 변경",
+};
+
+function getNotificationKind(type) {
+  return NOTIFICATION_KIND_LABELS[type] ?? "알림";
+}
+
+async function getUser(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  return prisma.user.findUnique({
+    where: { userId: String(userId).trim() },
+  });
+}
+
+async function getTasks({ user, versionId }) {
+  if (!user) {
+    return [];
+  }
+
+  const [notifications, issues, retestIssues] = await Promise.all([
+    prisma.notification.findMany({
+      where: {
+        userId: user.id,
+        isRead: false,
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 5,
+      take: DASHBOARD_LIMIT,
+    }),
+    prisma.issue.findMany({
+      where: {
+        versionId,
+        assignee: {
+          in: [user.name, user.userId],
+        },
+        NOT: {
+          redmineStatus: {
+            contains: "재검증",
+          },
+        },
+      },
+      orderBy: [{ createdOn: "desc" }, { id: "desc" }],
+      take: DASHBOARD_LIMIT,
+    }),
+    prisma.issue.findMany({
+      where: {
+        versionId,
+        assignee: {
+          in: [user.name, user.userId],
+        },
+        redmineStatus: {
+          contains: "재검증",
+        },
+      },
+      orderBy: [{ createdOn: "desc" }, { id: "desc" }],
+      take: DASHBOARD_LIMIT,
     }),
   ]);
 
-  const allRuns = await prisma.testRun.findMany({
+  return [
+    ...notifications.map((notification) => ({
+      id: `notification-${notification.id}`,
+      kind: getNotificationKind(notification.type),
+      title: notification.message,
+      when: toRelativeDay(notification.createdAt),
+      targetType: notification.targetType ?? "notification",
+      targetId: notification.targetId ?? notification.id,
+      isRead: notification.isRead,
+      createdAt: notification.createdAt.toISOString(),
+    })),
+    ...retestIssues.map((issue) => ({
+      id: `retest-${issue.id}`,
+      kind: "재검증 요청",
+      title: `${issue.redmineIssueId ? `#${issue.redmineIssueId} ` : ""}${issue.title}`,
+      when: toRelativeDay(issue.createdOn),
+      targetType: "issue",
+      targetId: issue.id,
+      isRead: false,
+      createdAt: issue.createdOn.toISOString(),
+    })),
+    ...issues.map((issue) => ({
+      id: `issue-${issue.id}`,
+      kind: "담당 TC",
+      title: `${issue.redmineIssueId ? `#${issue.redmineIssueId} ` : ""}${issue.title}`,
+      when: toRelativeDay(issue.createdOn),
+      targetType: "issue",
+      targetId: issue.id,
+      isRead: false,
+      createdAt: issue.createdOn.toISOString(),
+    })),
+  ]
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+    .slice(0, DASHBOARD_LIMIT);
+}
+
+async function getTestRuns(versionId) {
+  const runs = await prisma.testRun.findMany({
+    where: { versionId },
     include: {
-      items: { include: { testCase: true }, orderBy: { id: "asc" } },
+      version: { select: { versionName: true } },
+      items: { select: { result: true, executedAt: true } },
     },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: DASHBOARD_LIMIT,
+  });
+
+  const totalRuns = await prisma.testRun.findMany({
+    select: { id: true, createdAt: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
+  const sequenceById = new Map(
+    totalRuns.map((run, index) => [run.id, index + 1])
+  );
 
-  const resultCounts = countResultBuckets(runItems);
-  const resultTotal =
-    resultCounts.passCount + resultCounts.failCount + resultCounts.emptyCount;
+  return runs
+    .map((run) => toRunResponse(run, sequenceById.get(run.id) ?? run.id))
+    .sort((left, right) => {
+      const leftComplete = left.status === "완료" ? 1 : 0;
+      const rightComplete = right.status === "완료" ? 1 : 0;
 
-  const statusCounts = {
-    completed: 0,
-    inProgress: 0,
-    failed: 0,
-    waiting: 0,
-  };
+      if (leftComplete !== rightComplete) {
+        return leftComplete - rightComplete;
+      }
 
-  allRuns.forEach((run) => {
-    const testCases = run.items.map((item, index) =>
-      toTestRunItemResponse(item, index)
-    );
-    const stats = computeTestRunStats(testCases);
-    const key = mapRunStatusKey(stats.status);
-    statusCounts[key] += 1;
+      return 0;
+    })
+    .slice(0, DASHBOARD_LIMIT);
+}
+
+async function getDefectData(versionId) {
+  const issues = await prisma.issue.findMany({
+    where: { versionId },
+    orderBy: [{ createdOn: "desc" }, { id: "desc" }],
   });
-
-  const testRunTotal = allRuns.length || 1;
-  const segments = [
-    {
-      key: "completed",
-      label: "완료",
-      count: statusCounts.completed,
-      percent: Number(((statusCounts.completed / testRunTotal) * 100).toFixed(1)),
-      color: STATUS_COLORS.completed,
-    },
-    {
-      key: "inProgress",
-      label: "진행 중",
-      count: statusCounts.inProgress,
-      percent: Number(((statusCounts.inProgress / testRunTotal) * 100).toFixed(1)),
-      color: STATUS_COLORS.inProgress,
-    },
-    {
-      key: "failed",
-      label: "실패",
-      count: statusCounts.failed,
-      percent: Number(((statusCounts.failed / testRunTotal) * 100).toFixed(1)),
-      color: STATUS_COLORS.failed,
-    },
-    {
-      key: "waiting",
-      label: "대기",
-      count: statusCounts.waiting,
-      percent: Number(((statusCounts.waiting / testRunTotal) * 100).toFixed(1)),
-      color: STATUS_COLORS.waiting,
-    },
+  const summaryConfig = [
+    ["new", "신규"],
+    ["inProgress", "진행 중"],
+    ["resolved", "해결"],
+    ["retest", "재검증"],
+    ["closed", "종료"],
   ];
+  const counts = Object.fromEntries(summaryConfig.map(([key]) => [key, 0]));
 
-  const runIdBase = await prisma.testRun.count();
-  const recentTestRuns = recentRuns.map((run, index) => {
-    const testCases = run.items.map((item, itemIndex) =>
-      toTestRunItemResponse(item, itemIndex)
-    );
-    const stats = computeTestRunStats(testCases);
-    const sequence = runIdBase - index;
-    const year = new Date(run.createdAt).getFullYear();
-
-    return {
-      runId: formatRunDisplayId(Math.max(sequence, 1), year),
-      runName: run.runName,
-      targetMenu: run.targetMenu ?? "",
-      status: stats.status,
-      progress:
-        stats.totalCount > 0
-          ? Math.round((stats.completedCount / stats.totalCount) * 100)
-          : 0,
-      createdAt: formatRunCreatedAt(run.createdAt),
-    };
+  issues.forEach((issue) => {
+    counts[getIssueStatusKey(issue)] += 1;
   });
 
   return {
-    summaryCards: {
-      totalTestCases,
-      totalTestCasesSub: formatDelta(testCasesLastWeek, 0).replace(
-        "지난주 대비",
-        "최근 7일"
-      ),
-      passCount: resultCounts.passCount,
-      passCountSub: formatPercent(resultCounts.passCount, resultTotal),
-      failCount: resultCounts.failCount,
-      failCountSub: formatPercent(resultCounts.failCount, resultTotal),
-      emptyCount: resultCounts.emptyCount,
-      emptyCountSub: formatPercent(resultCounts.emptyCount, resultTotal),
-      totalTestRuns,
-      totalTestRunsSub: formatDelta(testRunsLastWeek, 0).replace(
-        "지난주 대비",
-        "최근 7일"
-      ),
-      totalDefects,
-      totalDefectsSub: formatDelta(defectsLastWeek, 0).replace(
-        "지난주 대비",
-        "최근 7일"
-      ),
-    },
-    testRunStatus: {
-      total: allRuns.length,
-      segments,
-    },
-    recentTestRuns,
+    summary: summaryConfig.map(([key, label]) => ({
+      key,
+      label,
+      count: counts[key],
+    })),
+    recent: issues.slice(0, DASHBOARD_LIMIT).map(toIssueResponse),
   };
+}
+
+async function getWeeklyReports(versionId) {
+  const rounds = await prisma.issueProgressRound.findMany({
+    where: { versionId },
+    orderBy: [
+      { year: "desc" },
+      { month: "desc" },
+      { weekOfMonth: "desc" },
+      { id: "desc" },
+    ],
+    take: DASHBOARD_LIMIT,
+  });
+
+  return rounds.map(toWeeklyReportResponse);
+}
+
+async function getNotices() {
+  const notices = await prisma.notice.findMany({
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: DASHBOARD_LIMIT,
+  });
+
+  return notices.map(toNoticeResponse);
+}
+
+export async function getDashboardOverview({ versionId, userId } = {}) {
+  const versions = await prisma.version.findMany({
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  const currentVersion = pickCurrentVersion(versions, versionId);
+  const currentVersionId = currentVersion?.id ?? null;
+  const user = await getUser(userId);
+
+  if (!currentVersionId) {
+    return {
+      currentVersion: null,
+      versions: [],
+      myTasks: [],
+      testRuns: [],
+      defectSummary: [],
+      recentDefects: [],
+      weeklyReports: [],
+      notices: await getNotices(),
+    };
+  }
+
+  const [
+    myTasks,
+    testRuns,
+    defectData,
+    weeklyReports,
+    notices,
+  ] = await Promise.all([
+    getTasks({ user, versionId: currentVersionId }),
+    getTestRuns(currentVersionId),
+    getDefectData(currentVersionId),
+    getWeeklyReports(currentVersionId),
+    getNotices(),
+  ]);
+
+  return {
+    currentVersion: toVersionResponse(currentVersion),
+    versions: versions.map(toVersionResponse),
+    myTasks,
+    testRuns,
+    defectSummary: defectData.summary,
+    recentDefects: defectData.recent,
+    weeklyReports,
+    notices,
+  };
+}
+
+export async function buildWeeklyReportWorkbook({ roundId, versionId } = {}) {
+  const where = {};
+
+  if (roundId) {
+    const round = await prisma.issueProgressRound.findUnique({
+      where: { id: Number(roundId) },
+    });
+
+    if (round) {
+      where.roundYear = round.year;
+      where.roundMonth = round.month;
+      where.roundWeek = round.weekOfMonth;
+      where.versionId = round.versionId;
+    }
+  } else if (versionId) {
+    where.versionId = Number(versionId);
+  }
+
+  const issues = await prisma.issue.findMany({
+    where,
+    orderBy: [{ createdOn: "desc" }, { id: "desc" }],
+  });
+
+  const rows = issues.map((issue, index) => ({
+    "No.": index + 1,
+    "Redmine 번호": issue.redmineIssueId ? `#${issue.redmineIssueId}` : `#${issue.id}`,
+    제목: issue.title,
+    메뉴: issue.menu ?? "",
+    담당자: issue.assignee ?? "",
+    우선순위: issue.priority ?? "",
+    등록일: formatDateOnly(issue.createdOn),
+    "Redmine URL": issue.redmineUrl ?? "",
+  }));
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, worksheet, "weekly-report");
+
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }

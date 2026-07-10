@@ -240,28 +240,27 @@ export async function updateVersionSubmenus(id, menuNames = []) {
 }
 
 export async function deleteVersion(id) {
+  const versionId = Number(id);
   const existing = await prisma.version.findUnique({
-    where: { id: Number(id) },
+    where: { id: versionId },
   });
 
   if (!existing) {
     return false;
   }
 
-  const linkedRunCount = await prisma.testRun.count({
-    where: { versionId: Number(id) },
-  });
+  await prisma.$transaction(async (tx) => {
+    await tx.testRun.deleteMany({
+      where: { versionId },
+    });
 
-  if (linkedRunCount > 0) {
-    throw new Error("VERSION_HAS_TEST_RUNS");
-  }
+    await tx.testCase.deleteMany({
+      where: { versionId },
+    });
 
-  await prisma.testCase.deleteMany({
-    where: { versionId: Number(id) },
-  });
-
-  await prisma.version.delete({
-    where: { id: Number(id) },
+    await tx.version.delete({
+      where: { id: versionId },
+    });
   });
 
   return true;

@@ -7,6 +7,15 @@ import {
 import issueApi from "../../../services/issueApi";
 import NewIssueTable from "../components/NewIssueTable";
 import NewIssueToolbar from "../components/NewIssueToolbar";
+import { useVersions } from "../../../hooks/useVersions";
+
+const STATUS_LABELS = {
+  NEW: "신규",
+  IN_PROGRESS: "진행 중",
+  RESOLVED: "해결",
+  RETEST: "재검증",
+  CLOSED: "종료",
+};
 
 function DefectSearchPage({
   loginUser,
@@ -17,7 +26,9 @@ function DefectSearchPage({
   notifications,
   onNotificationClick,
   onMarkAllNotificationsRead,
+  routeParams = {},
 }) {
+  const { issueVersions } = useVersions();
   const [issues, setIssues] = useState([]);
   const [assigneeOptions, setAssigneeOptions] = useState([]);
   const [searchText, setSearchText] = useState("");
@@ -32,6 +43,20 @@ function DefectSearchPage({
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const versionFilter = routeParams.versionId ?? "";
+  const statusFilter = routeParams.status ?? "";
+  const selectedVersionName = useMemo(() => {
+    if (!versionFilter) {
+      return "";
+    }
+
+    return (
+      issueVersions.find(
+        (version) => String(version.id) === String(versionFilter)
+      )?.version ?? ""
+    );
+  }, [issueVersions, versionFilter]);
 
   useEffect(() => {
     issueApi
@@ -51,6 +76,8 @@ function DefectSearchPage({
       .list({
         search: searchText,
         assignee: assigneeFilter,
+        versionId: versionFilter,
+        status: statusFilter,
         page,
         pageSize,
       })
@@ -72,7 +99,7 @@ function DefectSearchPage({
       .finally(() => {
         setLoading(false);
       });
-  }, [assigneeFilter, page, pageSize, searchText]);
+  }, [assigneeFilter, page, pageSize, searchText, statusFilter, versionFilter]);
 
   useEffect(() => {
     setPage(1);
@@ -126,6 +153,8 @@ function DefectSearchPage({
             <h2>검색/필터</h2>
             <p className="df-page-description">
               등록된 이슈를 제목, 담당자 기준으로 검색합니다.
+              {selectedVersionName ? ` · 버전 ${selectedVersionName}` : ""}
+              {statusFilter ? ` · 상태 ${STATUS_LABELS[statusFilter] ?? statusFilter}` : ""}
             </p>
           </div>
         </div>

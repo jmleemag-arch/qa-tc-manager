@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
 import { useAllTestCases } from "../../../hooks/useTestCases";
 import { useTestRuns } from "../../../hooks/useTestRuns";
@@ -49,6 +49,24 @@ function TestRunListPage({
     updateTestRunItemResult,
   } = useTestRuns();
   const selectedRunId = routeParams.runId ?? null;
+  const versionFilterName = useMemo(() => {
+    if (!routeParams.versionId) {
+      return "";
+    }
+
+    return (
+      issueVersions.find(
+        (version) => String(version.id) === String(routeParams.versionId)
+      )?.version ?? ""
+    );
+  }, [issueVersions, routeParams.versionId]);
+
+  useEffect(() => {
+    if (routeParams.create === "1") {
+      setIsCreateModalOpen(true);
+      onRouteChange?.({ create: null }, { replace: true });
+    }
+  }, [routeParams.create, onRouteChange]);
 
   const selectedTestRun = useMemo(
     () => findTestRunById(testRuns, selectedRunId),
@@ -56,17 +74,29 @@ function TestRunListPage({
   );
 
   const summaryStats = useMemo(() => getSummaryStats(testRuns), [testRuns]);
-  const filteredTestRuns = useMemo(
-    () =>
-      filterTestRuns(testRuns, {
-        statusFilter,
-        menuFilter,
-        searchText,
-        startDate,
-        endDate,
-      }),
-    [testRuns, statusFilter, menuFilter, searchText, startDate, endDate]
-  );
+  const filteredTestRuns = useMemo(() => {
+    const base = filterTestRuns(testRuns, {
+      statusFilter,
+      menuFilter,
+      searchText,
+      startDate,
+      endDate,
+    });
+
+    if (!versionFilterName) {
+      return base;
+    }
+
+    return base.filter((run) => run.targetVersion === versionFilterName);
+  }, [
+    testRuns,
+    statusFilter,
+    menuFilter,
+    searchText,
+    startDate,
+    endDate,
+    versionFilterName,
+  ]);
   const statusDistribution = useMemo(
     () => getStatusDistribution(testRuns),
     [testRuns]

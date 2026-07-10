@@ -10,7 +10,10 @@ import NewIssueTable from "./NewIssueTable";
 import NewIssueToolbar from "./NewIssueToolbar";
 import RoundSelector from "./RoundSelector";
 
-function NewRegisteredIssuesSection() {
+function NewRegisteredIssuesSection({
+  routeParams = {},
+  onRouteChange,
+}) {
   const [selectedRound, setSelectedRound] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -36,6 +39,13 @@ function NewRegisteredIssuesSection() {
     page,
     pageSize,
   });
+
+  useEffect(() => {
+    if (routeParams.create === "1") {
+      setIsCreateModalOpen(true);
+      onRouteChange?.({ create: null }, { replace: true });
+    }
+  }, [routeParams.create, onRouteChange]);
 
   useEffect(() => {
     if (!selectedRound && defaultRound?.roundKey) {

@@ -1146,6 +1146,13 @@
 
 .tc-version-custom-menu-form {
   margin-top: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.tc-version-custom-menu-form .tc-modal-save-btn {
+  width: auto;
+  justify-self: start;
+  white-space: nowrap;
 }
 
 .tc-manager-empty {

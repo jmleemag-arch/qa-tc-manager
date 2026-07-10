@@ -121,7 +121,7 @@ function TestCaseVersionManager({
 
   const handleDelete = (version) => {
     const confirmed = window.confirm(
-      `${version.name} 버전을 삭제하시겠습니까? 이 버전의 테스트 케이스도 함께 삭제됩니다.`
+      `${version.name} 버전을 삭제하시겠습니까? 이 버전의 테스트 케이스와 테스트 런도 함께 삭제됩니다.`
     );
 
     if (confirmed) {

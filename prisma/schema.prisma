@@ -21,6 +21,7 @@ model Version {
   submenus  Submenu[]
   testCases TestCase[]
   testRuns  TestRun[]
+  issues    Issue[]
   issueProgressRounds IssueProgressRound[]
 
   @@map("versions")
@@ -114,6 +115,7 @@ model IssueProgressRound {
 
 model Issue {
   id             Int       @id @default(autoincrement())
+  versionId      Int?      @map("version_id")
   redmineIssueId String?   @map("redmine_issue_id")
   title          String
   description    String?
@@ -133,7 +135,21 @@ model Issue {
   weekStart      DateTime  @map("week_start")
   weekEnd        DateTime  @map("week_end")
 
+  version Version? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+
   @@map("issues")
+}
+
+model Notice {
+  id        Int      @id @default(autoincrement())
+  category  String   @default("공지")
+  title     String
+  content   String?
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("notices")
 }
 
 model User {

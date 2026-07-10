@@ -13,8 +13,14 @@ function buildWhereClause({
   roundWeek,
   search,
   assignee,
+  versionId,
+  status,
 } = {}) {
   const where = {};
+
+  if (versionId) {
+    where.versionId = Number(versionId);
+  }
 
   if (roundYear && roundMonth && roundWeek) {
     where.roundYear = Number(roundYear);
@@ -37,6 +43,28 @@ function buildWhereClause({
       { title: { contains: keyword } },
       { redmineIssueId: { contains: keyword.replace("#", "") } },
     ];
+  }
+
+  if (status) {
+    const statusPatterns = {
+      NEW: ["등록완료", "신규", "대기"],
+      IN_PROGRESS: ["진행"],
+      RESOLVED: ["해결"],
+      RETEST: ["재검증"],
+      CLOSED: ["종료"],
+    };
+    const patterns = statusPatterns[String(status).toUpperCase()];
+
+    if (patterns?.length) {
+      where.AND = [
+        ...(where.AND ?? []),
+        {
+          OR: patterns.map((pattern) => ({
+            redmineStatus: { contains: pattern },
+          })),
+        },
+      ];
+    }
   }
 
   return where;
@@ -170,6 +198,7 @@ export async function createIssueDraft(payload) {
 
   return prisma.issue.create({
     data: {
+      versionId: payload.versionId ? Number(payload.versionId) : null,
       title: payload.title,
       description: payload.description ?? "",
       project: payload.project ?? "",
@@ -213,6 +242,7 @@ export async function createIssue(payload) {
       redmineIssueId: String(payload.redmineIssueId ?? payload.issueId ?? "")
         .replace("#", "")
         .trim() || null,
+      versionId: payload.versionId ? Number(payload.versionId) : null,
       title: payload.title,
       description: payload.description ?? "",
       project: payload.project ?? "",
@@ -239,6 +269,10 @@ export async function updateIssue(id, payload) {
 
   if (payload.title !== undefined) {
     data.title = payload.title;
+  }
+
+  if (payload.versionId !== undefined) {
+    data.versionId = payload.versionId ? Number(payload.versionId) : null;
   }
 
   if (payload.description !== undefined) {

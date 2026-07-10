@@ -14,6 +14,7 @@ export function toIssueResponse(issue) {
 
   return {
     id: issue.id,
+    versionId: issue.versionId ?? null,
     issueId,
     title: issue.title,
     description: issue.description ?? "",

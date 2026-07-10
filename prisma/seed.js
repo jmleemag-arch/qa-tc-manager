@@ -189,10 +189,34 @@ async function seedUsers() {
   }
 }
 
+async function pickSeedVersion() {
+  const versions = await prisma.version.findMany({
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+
+  return (
+    versions.find(
+      (version) =>
+        String(version.status).includes("진행") ||
+        String(version.status).toLowerCase().includes("active")
+    ) ??
+    versions[0] ??
+    null
+  );
+}
+
 async function seedIssues() {
   await prisma.issue.deleteMany();
 
-  for (const issue of newRegisteredIssues) {
+  const targetVersion = await pickSeedVersion();
+
+  if (!targetVersion) {
+    return;
+  }
+
+  const statusRotation = ["등록완료", "진행 중", "해결됨", "재검증", "종료"];
+
+  for (const [index, issue] of newRegisteredIssues.entries()) {
     const createdOn = new Date(`${issue.registeredAt}T00:00:00`);
     const weekStart = getWeekStartDate(issue.registeredAt);
     const weekEnd = getWeekEndDate(weekStart);
@@ -200,6 +224,7 @@ async function seedIssues() {
 
     await prisma.issue.create({
       data: {
+        versionId: targetVersion.id,
         redmineIssueId: issue.issueId.replace("#", ""),
         title: issue.title,
         description: issue.title,
@@ -207,8 +232,8 @@ async function seedIssues() {
         menu: issue.menu,
         priority: issue.severity,
         severity: issue.severity,
-        assignee: issue.assignee,
-        redmineStatus: "등록완료",
+        assignee: index < 3 ? "김철수" : issue.assignee,
+        redmineStatus: statusRotation[index % statusRotation.length],
         redmineUrl: `https://redmine.example/issues/${issue.issueId.replace("#", "")}`,
         createdOn,
         roundYear: roundMeta.year,
@@ -223,47 +248,45 @@ async function seedIssues() {
 }
 
 async function seedTestCases() {
-  const version = await prisma.version.findUnique({
-    where: { versionName: "26.1.0" },
-  });
-
-  if (!version) {
-    return;
-  }
-
   await prisma.testCase.deleteMany();
 
-  for (const [index, testCase] of mockTestCases.entries()) {
-    await prisma.testCase.create({
-      data: {
-        versionId: version.id,
-        caseCode: testCase.id,
-        menu: testCase.menu,
-        submenu: testCase.subMenu,
-        checkItem: testCase.checkItem,
-        checkMethod: testCase.checkMethod,
-        expectedResult: testCase.checkResult,
-        actualResult: testCase.isWorking,
-        note: testCase.note,
-        sortOrder: index,
-      },
-    });
+  const versions = await prisma.version.findMany({
+    where: {
+      OR: [{ versionName: "26.1.0" }, { status: { contains: "진행" } }],
+    },
+  });
+
+  for (const version of versions) {
+    for (const [index, testCase] of mockTestCases.entries()) {
+      await prisma.testCase.create({
+        data: {
+          versionId: version.id,
+          caseCode: testCase.id,
+          menu: testCase.menu,
+          submenu: testCase.subMenu,
+          checkItem: testCase.checkItem,
+          checkMethod: testCase.checkMethod,
+          expectedResult: testCase.checkResult,
+          actualResult: testCase.isWorking,
+          note: testCase.note,
+          sortOrder: index,
+        },
+      });
+    }
   }
 }
 
 async function seedTestRuns() {
   await prisma.testRun.deleteMany();
 
-  const defaultVersion = await prisma.version.findUnique({
-    where: { versionName: "26.1.0" },
-  });
+  const targetVersion = await pickSeedVersion();
 
-  if (!defaultVersion) {
+  if (!targetVersion) {
     return;
   }
 
   const testCases = await prisma.testCase.findMany({
-    where: { versionId: defaultVersion.id },
+    where: { versionId: targetVersion.id },
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
   });
 
@@ -279,7 +302,7 @@ async function seedTestRuns() {
 
     await prisma.testRun.create({
       data: {
-        versionId: defaultVersion.id,
+        versionId: targetVersion.id,
         runName: run.runName,
         targetMenu: run.targetMenu,
         status: run.status,
@@ -395,6 +418,7 @@ async function seedNotifications() {
   await prisma.notification.deleteMany();
 
   const users = await prisma.user.findMany();
+  const tester = users.find((user) => user.userId === "tester1");
 
   for (const user of users) {
     await prisma.notification.create({
@@ -404,6 +428,64 @@ async function seedNotifications() {
         message: "QA Manager DB 기반 알림이 활성화되었습니다.",
         targetType: "system",
         isRead: false,
+      },
+    });
+  }
+
+  if (tester) {
+    await prisma.notification.createMany({
+      data: [
+        {
+          userId: tester.id,
+          type: "mention",
+          message: "@이주미 확인 부탁드립니다.",
+          targetType: "notification",
+          isRead: false,
+        },
+        {
+          userId: tester.id,
+          type: "status_change",
+          message: "#5331 네트워크 연결 실패 오류 상태가 변경되었습니다.",
+          targetType: "issue",
+          targetId: 1,
+          isRead: false,
+        },
+        {
+          userId: tester.id,
+          type: "assignee",
+          message: "재검증 요청: #5339 Client 경고 설정 저장 오류",
+          targetType: "issue",
+          targetId: 2,
+          isRead: false,
+        },
+      ],
+    });
+  }
+}
+
+async function seedNotices() {
+  await prisma.notice.deleteMany();
+
+  const categories = ["공지", "알림", "릴리즈"];
+  const titlePrefix = {
+    공지: "QA 운영 공지",
+    알림: "시스템 알림",
+    릴리즈: "릴리즈 안내",
+  };
+
+  for (let index = 1; index <= 100; index += 1) {
+    const category = categories[(index - 1) % categories.length];
+    const createdAt = new Date();
+    createdAt.setDate(createdAt.getDate() - (index - 1));
+    createdAt.setHours(9 + (index % 8), index % 60, 0, 0);
+
+    await prisma.notice.create({
+      data: {
+        category,
+        title: `${titlePrefix[category]} #${String(101 - index).padStart(3, "0")} - ${category} 항목 ${index}`,
+        content: `${category} 내용 ${index}번입니다. QA Manager 공지사항 목록 페이지 구성 확인용 데이터입니다.`,
+        createdBy: index % 3 === 0 ? "qa-manager" : "admin",
+        createdAt,
       },
     });
   }
@@ -418,6 +500,7 @@ async function main() {
   await seedIssueProgressRounds();
   await seedIssues();
   await seedNotifications();
+  await seedNotices();
 
   console.log("Seed completed.");
 }

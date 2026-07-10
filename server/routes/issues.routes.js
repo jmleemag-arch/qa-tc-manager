@@ -27,6 +27,8 @@ router.get("/", async (req, res, next) => {
       roundWeek: req.query.roundWeek,
       search: req.query.search,
       assignee: req.query.assignee,
+      versionId: req.query.versionId,
+      status: req.query.status,
       page: req.query.page,
       pageSize: req.query.pageSize,
     });

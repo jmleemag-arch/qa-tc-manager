@@ -15,6 +15,8 @@ function DefectListPage({
   onNotificationClick,
   onMarkAllNotificationsRead,
   defectView = "overview",
+  routeParams = {},
+  onRouteChange,
 }) {
   const {
     issueVersions: apiIssueVersions,
@@ -33,6 +35,24 @@ function DefectListPage({
   } = useIssueProgress();
   const [focusedIssueVersion, setFocusedIssueVersion] = useState("");
   const activeView = defectView === "new-issues" ? "new-issues" : "overview";
+
+  const initialVersionName = useMemo(() => {
+    if (!routeParams.versionId) {
+      return "";
+    }
+
+    return (
+      apiIssueVersions.find(
+        (version) => String(version.id) === String(routeParams.versionId)
+      )?.version ?? ""
+    );
+  }, [apiIssueVersions, routeParams.versionId]);
+
+  useEffect(() => {
+    if (initialVersionName) {
+      setFocusedIssueVersion(initialVersionName);
+    }
+  }, [initialVersionName]);
 
   const issueVersions = useMemo(
     () =>
@@ -83,7 +103,10 @@ function DefectListPage({
     >
       <section className="df-page-shell">
         {activeView === "new-issues" ? (
-          <NewRegisteredIssuesSection />
+          <NewRegisteredIssuesSection
+            routeParams={routeParams}
+            onRouteChange={onRouteChange}
+          />
         ) : isOverviewLoading ? (
           <p className="df-page-description">결함 현황 데이터를 불러오는 중입니다...</p>
         ) : overviewError ? (
