@@ -1,4 +1,7 @@
-import { EXECUTION_RESULT_OPTIONS } from "../constants/testRunConstants";
+import {
+  EXECUTION_RESULT_EMPTY_VALUE,
+  EXECUTION_RESULT_OPTIONS,
+} from "../constants/testRunConstants";
 
 function TestRunDetailRow({ testCase, onResultChange }) {
   return (
@@ -12,10 +15,16 @@ function TestRunDetailRow({ testCase, onResultChange }) {
       <td>
         <select
           className="tr-result-select"
-          value={testCase.isWorking}
-          onChange={(e) => onResultChange(testCase.uid, e.target.value)}
+          value={testCase.isWorking ?? EXECUTION_RESULT_EMPTY_VALUE}
+          onChange={(e) =>
+            onResultChange(
+              testCase.uid,
+              e.target.value || null
+            )
+          }
           aria-label={`${testCase.displayId || testCase.originalId} 실행 결과`}
         >
+          <option value={EXECUTION_RESULT_EMPTY_VALUE}>-</option>
           {EXECUTION_RESULT_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}

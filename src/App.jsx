@@ -8,6 +8,7 @@ import SettingsPage from "./features/settings/pages/SettingsPage";
 import TestCaseListPage from "./features/testcases/pages/TestCaseListPage";
 import TestRunListPage from "./features/testruns/pages/TestRunListPage";
 import VersionManagementPage from "./features/testcases/pages/VersionManagementPage";
+import MyTasksPage from "./features/tasks/pages/MyTasksPage";
 import NoticeListPage from "./features/notices/pages/NoticeListPage";
 import SessionExpiryModal from "./features/auth/components/SessionExpiryModal";
 import { useIdleSession } from "./features/auth/hooks/useIdleSession";
@@ -269,6 +270,9 @@ function App() {
       break;
     case MENU_IDS.NOTICES:
       pageContent = <NoticeListPage {...pageProps} />;
+      break;
+    case MENU_IDS.MY_TASKS:
+      pageContent = <MyTasksPage {...pageProps} />;
       break;
     default:
       pageContent = <PlaceholderPage {...pageProps} />;

@@ -66,12 +66,16 @@ function TestRunDetailPage({
             <strong className="tr-fail">{testRun.failCount}</strong>
           </div>
           <div className="tr-detail-summary-item">
-            <span>BLOCK</span>
-            <strong>{testRun.blockCount}</strong>
+            <span>N/A</span>
+            <strong>{testRun.naCount}</strong>
           </div>
           <div className="tr-detail-summary-item">
-            <span>NT</span>
+            <span>N/T</span>
             <strong>{testRun.ntCount}</strong>
+          </div>
+          <div className="tr-detail-summary-item">
+            <span>미입력</span>
+            <strong>{testRun.unsetCount}</strong>
           </div>
           <div className="tr-detail-summary-item tr-detail-progress-item">
             <span>진행률</span>

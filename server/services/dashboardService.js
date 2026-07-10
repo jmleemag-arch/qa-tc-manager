@@ -3,9 +3,10 @@ import { prisma } from "../db.js";
 import { formatDateOnly } from "../utils/weekUtils.js";
 
 import { formatRunDisplayId } from "./testRunMapper.js";
+import { getDashboardTasks } from "./userTaskService.js";
 
 const DASHBOARD_LIMIT = 5;
-const COMPLETED_RESULTS = new Set(["O", "X", "BLOCK", "N/A"]);
+const COMPLETED_RESULTS = new Set(["O", "X", "N/A", "N/T"]);
 
 function isActiveVersion(version) {
   const status = String(version.status ?? "").toLowerCase();
@@ -215,109 +216,6 @@ function toNoticeResponse(notice) {
   };
 }
 
-const NOTIFICATION_KIND_LABELS = {
-  mention: "멘션",
-  assignee: "담당자 지정",
-  issue_registered: "신규 등록",
-  test_run_complete: "테스트 런 완료",
-  version_release: "릴리스",
-  status_change: "상태 변경",
-};
-
-function getNotificationKind(type) {
-  return NOTIFICATION_KIND_LABELS[type] ?? "알림";
-}
-
-async function getUser(userId) {
-  if (!userId) {
-    return null;
-  }
-
-  return prisma.user.findUnique({
-    where: { userId: String(userId).trim() },
-  });
-}
-
-async function getTasks({ user, versionId }) {
-  if (!user) {
-    return [];
-  }
-
-  const [notifications, issues, retestIssues] = await Promise.all([
-    prisma.notification.findMany({
-      where: {
-        userId: user.id,
-        isRead: false,
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: DASHBOARD_LIMIT,
-    }),
-    prisma.issue.findMany({
-      where: {
-        versionId,
-        assignee: {
-          in: [user.name, user.userId],
-        },
-        NOT: {
-          redmineStatus: {
-            contains: "재검증",
-          },
-        },
-      },
-      orderBy: [{ createdOn: "desc" }, { id: "desc" }],
-      take: DASHBOARD_LIMIT,
-    }),
-    prisma.issue.findMany({
-      where: {
-        versionId,
-        assignee: {
-          in: [user.name, user.userId],
-        },
-        redmineStatus: {
-          contains: "재검증",
-        },
-      },
-      orderBy: [{ createdOn: "desc" }, { id: "desc" }],
-      take: DASHBOARD_LIMIT,
-    }),
-  ]);
-
-  return [
-    ...notifications.map((notification) => ({
-      id: `notification-${notification.id}`,
-      kind: getNotificationKind(notification.type),
-      title: notification.message,
-      when: toRelativeDay(notification.createdAt),
-      targetType: notification.targetType ?? "notification",
-      targetId: notification.targetId ?? notification.id,
-      isRead: notification.isRead,
-      createdAt: notification.createdAt.toISOString(),
-    })),
-    ...retestIssues.map((issue) => ({
-      id: `retest-${issue.id}`,
-      kind: "재검증 요청",
-      title: `${issue.redmineIssueId ? `#${issue.redmineIssueId} ` : ""}${issue.title}`,
-      when: toRelativeDay(issue.createdOn),
-      targetType: "issue",
-      targetId: issue.id,
-      isRead: false,
-      createdAt: issue.createdOn.toISOString(),
-    })),
-    ...issues.map((issue) => ({
-      id: `issue-${issue.id}`,
-      kind: "담당 TC",
-      title: `${issue.redmineIssueId ? `#${issue.redmineIssueId} ` : ""}${issue.title}`,
-      when: toRelativeDay(issue.createdOn),
-      targetType: "issue",
-      targetId: issue.id,
-      isRead: false,
-      createdAt: issue.createdOn.toISOString(),
-    })),
-  ]
-    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
-    .slice(0, DASHBOARD_LIMIT);
-}
-
 async function getTestRuns(versionId) {
   const runs = await prisma.testRun.findMany({
     where: { versionId },
@@ -410,7 +308,6 @@ export async function getDashboardOverview({ versionId, userId } = {}) {
   });
   const currentVersion = pickCurrentVersion(versions, versionId);
   const currentVersionId = currentVersion?.id ?? null;
-  const user = await getUser(userId);
 
   if (!currentVersionId) {
     return {
@@ -432,7 +329,11 @@ export async function getDashboardOverview({ versionId, userId } = {}) {
     weeklyReports,
     notices,
   ] = await Promise.all([
-    getTasks({ user, versionId: currentVersionId }),
+    getDashboardTasks({
+      userId,
+      versionId: currentVersionId,
+      limit: DASHBOARD_LIMIT,
+    }),
     getTestRuns(currentVersionId),
     getDefectData(currentVersionId),
     getWeeklyReports(currentVersionId),

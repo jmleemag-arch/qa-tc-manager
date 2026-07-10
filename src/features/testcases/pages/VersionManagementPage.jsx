@@ -1,11 +1,11 @@
 import { useState } from "react";
 import MainLayout from "../../../components/layout/MainLayout";
-import { MENU_IDS } from "../../../constants/appConstants";
 import { useCustomMenuPool } from "../../../hooks/useCustomMenuPool";
 import { useVersions } from "../../../hooks/useVersions";
 import TestCaseVersionManager from "../components/TestCaseVersionManager";
 import {
   FIXED_VERSION_MENUS,
+  getDeleteVersionConfirmMessage,
   SIDEBAR_MENUS,
 } from "../constants/testCaseConstants";
 import {
@@ -87,7 +87,15 @@ function VersionManagementPage({
     const currentVersion = versions.find((version) => version.id === versionId);
 
     if (!currentVersion) {
-      return;
+      return false;
+    }
+
+    const confirmed = window.confirm(
+      getDeleteVersionConfirmMessage(currentVersion.name)
+    );
+
+    if (!confirmed) {
+      return false;
     }
 
     try {
@@ -96,8 +104,11 @@ function VersionManagementPage({
       if (selectedVersionId === versionId) {
         setSelectedVersionId(null);
       }
+
+      return true;
     } catch {
       alert("버전을 삭제하지 못했습니다.");
+      return false;
     }
   };
 

@@ -8,6 +8,8 @@ import "./styles/testcases.css";
 import "./styles/testRuns.css";
 import "./styles/dashboard.css";
 import "./styles/defects.css";
+import "./styles/weekly-progress.css";
+import "./styles/my-tasks.css";
 import "./styles/settings.css";
 
 createRoot(document.getElementById("root")).render(

@@ -63,8 +63,8 @@ function TestRunsSettingsPanel({ settings, onChange }) {
         <ul className="st-bullet-list">
           <li><strong>O</strong> — 통과</li>
           <li><strong>X</strong> — 실패</li>
-          <li><strong>BLOCK</strong> — 차단됨</li>
-          <li><strong>NT</strong> — 미실행</li>
+          <li><strong>N/A</strong> — 해당 없음</li>
+          <li><strong>N/T</strong> — 미실행</li>
         </ul>
       </SettingsCard>
     </div>

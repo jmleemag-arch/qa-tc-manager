@@ -119,16 +119,11 @@ function TestCaseVersionManager({
     setEditingDescription("");
   };
 
-  const handleDelete = (version) => {
-    const confirmed = window.confirm(
-      `${version.name} 버전을 삭제하시겠습니까? 이 버전의 테스트 케이스와 테스트 런도 함께 삭제됩니다.`
-    );
+  const handleDelete = async (version) => {
+    const deleted = await onDeleteVersion(version.id);
 
-    if (confirmed) {
-      onDeleteVersion(version.id);
-      if (selectedVersionId === version.id) {
-        setSelectedVersionId(versions[0]?.id ?? null);
-      }
+    if (deleted && selectedVersionId === version.id) {
+      setSelectedVersionId(versions[0]?.id ?? null);
     }
   };
 

@@ -187,7 +187,7 @@ async function ensureTestRun(versionId, testCases) {
       items: {
         create: testCases.map((testCase) => ({
           testCaseId: testCase.id,
-          result: "NT",
+          result: null,
         })),
       },
     },

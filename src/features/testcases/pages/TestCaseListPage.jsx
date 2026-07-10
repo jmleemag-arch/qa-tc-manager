@@ -12,6 +12,7 @@ import {
   DELETE_SELECT_ALERT,
   EXCEL_DOWNLOAD_EMPTY_ALERT,
   FIXED_VERSION_MENUS,
+  getDeleteVersionConfirmMessage,
   IS_WORKING_FILTER_ALL,
   MENU_SELECT_ALERT,
   SIDEBAR_MENUS,
@@ -350,7 +351,15 @@ function TestCaseListPage({
     const currentVersion = versions.find((version) => version.id === versionId);
 
     if (!currentVersion) {
-      return;
+      return false;
+    }
+
+    const confirmed = window.confirm(
+      getDeleteVersionConfirmMessage(currentVersion.name)
+    );
+
+    if (!confirmed) {
+      return false;
     }
 
     try {
@@ -360,8 +369,11 @@ function TestCaseListPage({
       if (activeVersion?.id === versionId) {
         onRouteChange?.({ versionId: null, menu: TOTAL_MENU }, { replace: true });
       }
+
+      return true;
     } catch {
       alert("버전을 삭제하지 못했습니다.");
+      return false;
     }
   };
 

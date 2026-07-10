@@ -8,6 +8,7 @@ export const MENU_IDS = {
   DEFECTS_SEARCH: "defects-search",
   SETTINGS: "settings",
   NOTIFICATIONS: "notifications",
+  MY_TASKS: "my-tasks",
   NOTICES: "notices",
 };
 
@@ -49,6 +50,7 @@ const MENU_ROUTE_SLUGS = {
   [MENU_IDS.DEFECTS_SEARCH]: "defects/search",
   [MENU_IDS.SETTINGS]: "settings",
   [MENU_IDS.NOTIFICATIONS]: "notifications",
+  [MENU_IDS.MY_TASKS]: "my-tasks",
   [MENU_IDS.NOTICES]: "notices",
 };
 
@@ -63,6 +65,7 @@ SLUG_TO_MENU_ID["defects/weekly"] = MENU_IDS.DEFECTS_PROGRESS;
 SLUG_TO_MENU_ID["test-runs/new"] = MENU_IDS.TEST_RUNS;
 SLUG_TO_MENU_ID.testruns = MENU_IDS.TEST_RUNS;
 SLUG_TO_MENU_ID.dashboard = MENU_IDS.DASHBOARD;
+SLUG_TO_MENU_ID["my-tasks"] = MENU_IDS.MY_TASKS;
 
 export const PAGE_TITLES = {
   [MENU_IDS.DASHBOARD]: "대시보드",
@@ -74,6 +77,7 @@ export const PAGE_TITLES = {
   [MENU_IDS.DEFECTS_SEARCH]: "검색/필터",
   [MENU_IDS.SETTINGS]: "설정",
   [MENU_IDS.NOTIFICATIONS]: "알림",
+  [MENU_IDS.MY_TASKS]: "내 할 일",
   [MENU_IDS.NOTICES]: "공지사항",
 };
 

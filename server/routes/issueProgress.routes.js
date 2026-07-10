@@ -1,10 +1,29 @@
 import { Router } from "express";
 import {
   listIssueProgressByVersion,
+  listIssueProgressRounds,
   updateIssueProgressRound,
 } from "../services/issueProgressService.js";
 
 const router = Router();
+
+router.get("/rounds", async (req, res, next) => {
+  try {
+    const data = await listIssueProgressRounds({
+      versionId: req.query.versionId,
+      year: req.query.year,
+      status: req.query.status,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      search: req.query.search,
+      page: req.query.page,
+      pageSize: req.query.pageSize,
+    });
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get("/", async (_req, res, next) => {
   try {

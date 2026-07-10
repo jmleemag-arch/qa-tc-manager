@@ -6,6 +6,17 @@ import {
   toTestRunResponse,
 } from "./testRunMapper.js";
 
+const VALID_EXECUTION_RESULTS = new Set(["O", "X", "N/A", "N/T"]);
+
+function normalizeExecutionResult(result) {
+  if (result === null || result === undefined || result === "") {
+    return null;
+  }
+
+  const normalized = String(result).trim();
+  return VALID_EXECUTION_RESULTS.has(normalized) ? normalized : null;
+}
+
 const TEST_RUN_INCLUDE = {
   version: {
     select: {
@@ -188,7 +199,7 @@ export async function createTestRun(payload) {
       items: {
         create: testCaseIds.map((testCaseId) => ({
           testCaseId,
-          result: "NT",
+          result: null,
         })),
       },
     },
@@ -241,11 +252,13 @@ export async function updateTestRunItemResult(runId, testCaseId, result) {
     return null;
   }
 
+  const normalizedResult = normalizeExecutionResult(result);
+
   await prisma.testRunItem.update({
     where: { id: item.id },
     data: {
-      result: String(result ?? "NT"),
-      executedAt: new Date(),
+      result: normalizedResult,
+      executedAt: normalizedResult ? new Date() : null,
     },
   });
 

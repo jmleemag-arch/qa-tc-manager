@@ -60,6 +60,10 @@ export const MENU_SELECT_ALERT = "메뉴를 먼저 선택해주세요.";
 
 export const DELETE_SELECT_ALERT = "삭제할 TC를 선택해주세요.";
 
+export function getDeleteVersionConfirmMessage(versionName) {
+  return `${versionName} 버전을 정말 삭제하시겠습니까?\n\n삭제 후 복구할 수 없으며, 이 버전의 테스트 케이스·테스트 런·주차별 진행 현황도 함께 삭제됩니다.`;
+}
+
 export const IS_WORKING_EMPTY_VALUE = "";
 
 export const IS_WORKING_OPTIONS = ["O", "X", "N/A", "N/T"];

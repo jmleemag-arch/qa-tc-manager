@@ -41,3 +41,14 @@ export const ISSUE_ROUND_STATUS_TONE = {
   [ISSUE_ROUND_STATUS.IN_PROGRESS]: "in-progress",
   [ISSUE_ROUND_STATUS.COMPLETED]: "completed",
 };
+
+export const WEEKLY_STATUS_FILTER_ALL = "전체";
+
+export const WEEKLY_STATUS_FILTER_OPTIONS = [
+  WEEKLY_STATUS_FILTER_ALL,
+  "미작성",
+  "작성 중",
+  "작성 완료",
+];
+
+export const WEEKLY_PAGE_SIZE_OPTIONS = [10, 20, 50];

@@ -1,8 +1,7 @@
 import apiClient from "./apiClient.js";
 
-export const issueProgressApi = {
-  listByVersion: () => apiClient.get("/api/v1/issue-progress"),
-  listRounds: (params = {}) => {
+export const myTasksApi = {
+  list: (params = {}) => {
     const query = new URLSearchParams();
 
     Object.entries(params).forEach(([key, value]) => {
@@ -12,13 +11,15 @@ export const issueProgressApi = {
     });
 
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    return apiClient.get(`/api/v1/issue-progress/rounds${suffix}`);
+    return apiClient.get(`/api/v1/my-tasks${suffix}`);
   },
-  update: (dbId, payload) =>
-    apiClient.request(`/api/v1/issue-progress/${dbId}`, {
+  update: (id, userId, payload) => {
+    const query = new URLSearchParams({ userId });
+    return apiClient.request(`/api/v1/my-tasks/${id}?${query.toString()}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
-    }),
+    });
+  },
 };
 
-export default issueProgressApi;
+export default myTasksApi;

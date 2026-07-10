@@ -1,7 +1,6 @@
 import MainLayout from "../../../components/layout/MainLayout";
 import { MENU_IDS } from "../../../constants/appConstants";
 import { useDashboard } from "../../../hooks/useDashboard";
-import notificationApi from "../../../services/notificationApi";
 import { navigateToMenu } from "../../../utils/appNavigation";
 import { useEffect } from "react";
 
@@ -80,18 +79,7 @@ function DashboardPage({
     onRouteChange?.({ versionId: event.target.value }, { replace: true });
   };
 
-  const handleTaskClick = async (task) => {
-    if (task.id.startsWith("notification-") && authUserId) {
-      const notificationId = task.id.replace("notification-", "");
-
-      try {
-        await notificationApi.markRead(notificationId, authUserId);
-        onNotificationClick?.({ id: Number(notificationId) });
-      } catch {
-        // Navigation should still work even if read-state sync fails.
-      }
-    }
-
+  const handleTaskClick = (task) => {
     if (task.targetType === "issue") {
       go(MENU_IDS.DEFECTS_NEW_ISSUES, {
         versionId: selectedVersionId,
@@ -108,7 +96,7 @@ function DashboardPage({
       return;
     }
 
-    go(MENU_IDS.NOTIFICATIONS);
+    go(MENU_IDS.MY_TASKS, { taskId: task.taskId ?? task.targetId });
   };
 
   const downloadWeeklyExcel = () => {
@@ -218,7 +206,7 @@ function DashboardPage({
               <button
                 type="button"
                 className="db-view-all-btn"
-                onClick={() => go(MENU_IDS.NOTIFICATIONS)}
+                onClick={() => go(MENU_IDS.MY_TASKS)}
               >
                 전체 보기
               </button>

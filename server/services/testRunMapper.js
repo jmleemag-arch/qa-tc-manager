@@ -26,17 +26,20 @@ function countExecutionResults(testCases = []) {
         case "X":
           counts.failCount += 1;
           break;
-        case "BLOCK":
-          counts.blockCount += 1;
+        case "N/A":
+          counts.naCount += 1;
+          break;
+        case "N/T":
+          counts.ntCount += 1;
           break;
         default:
-          counts.ntCount += 1;
+          counts.unsetCount += 1;
           break;
       }
 
       return counts;
     },
-    { passCount: 0, failCount: 0, blockCount: 0, ntCount: 0 }
+    { passCount: 0, failCount: 0, naCount: 0, ntCount: 0, unsetCount: 0 }
   );
 }
 
@@ -45,15 +48,15 @@ function deriveTestRunStatus(counts, totalCount) {
     return TEST_RUN_STATUS.WAITING;
   }
 
-  if (counts.ntCount === totalCount) {
+  if (counts.unsetCount === totalCount) {
     return TEST_RUN_STATUS.WAITING;
   }
 
-  if (counts.ntCount > 0) {
+  if (counts.unsetCount > 0) {
     return TEST_RUN_STATUS.IN_PROGRESS;
   }
 
-  if (counts.failCount > 0 || counts.blockCount > 0) {
+  if (counts.failCount > 0 || counts.naCount > 0) {
     return TEST_RUN_STATUS.FAILED;
   }
 
@@ -68,15 +71,19 @@ export function computeTestRunStats(testCases = []) {
   const counts = countExecutionResults(testCases);
   const totalCount = testCases.length;
   const completedCount =
-    counts.passCount + counts.failCount + counts.blockCount;
+    counts.passCount +
+    counts.failCount +
+    counts.naCount +
+    counts.ntCount;
 
   return {
     totalCount,
     completedCount,
     passCount: counts.passCount,
     failCount: counts.failCount,
-    blockCount: counts.blockCount,
+    naCount: counts.naCount,
     ntCount: counts.ntCount,
+    unsetCount: counts.unsetCount,
     status: deriveTestRunStatus(counts, totalCount),
   };
 }
@@ -97,7 +104,7 @@ export function toTestRunItemResponse(item, index) {
     checkItem: testCase.checkItem ?? "",
     checkMethod: testCase.checkMethod ?? "",
     checkResult: testCase.expectedResult ?? "",
-    isWorking: item.result ?? "NT",
+    isWorking: item.result ?? "",
     note: testCase.note ?? "",
   };
 }

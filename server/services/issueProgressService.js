@@ -141,6 +141,7 @@ export async function updateIssueProgressRound(id, payload) {
 
   const { total, inProgress, newCount, hasAllCounts } = parseCounts(payload);
   const requestedStatus = payload.status;
+  const createdBy = String(payload.createdBy ?? payload.author ?? "").trim();
 
   if (requestedStatus === ISSUE_ROUND_STATUS.COMPLETED) {
     if (!hasAllCounts) {
@@ -165,18 +166,112 @@ export async function updateIssueProgressRound(id, payload) {
         ? ISSUE_ROUND_STATUS.IN_PROGRESS
         : ISSUE_ROUND_STATUS.NOT_STARTED;
 
+  const data = {
+    total,
+    inProgress,
+    newCount,
+    status: nextStatus,
+  };
+
+  if (createdBy) {
+    data.createdBy = createdBy;
+  }
+
+  if (nextStatus === ISSUE_ROUND_STATUS.COMPLETED) {
+    data.writtenAt = new Date();
+  } else if (hasAllCounts && !existing.writtenAt) {
+    data.writtenAt = new Date();
+  }
+
   const record = await prisma.issueProgressRound.update({
     where: { id: numericId },
-    data: {
-      total,
-      inProgress,
-      newCount,
-      status: nextStatus,
-    },
+    data,
     include: ROUND_INCLUDE,
   });
 
   return toIssueProgressRoundResponse(record);
+}
+
+function buildRoundWhere(filters = {}) {
+  const where = {};
+
+  if (filters.versionId) {
+    where.versionId = Number(filters.versionId);
+  }
+
+  if (filters.year) {
+    where.year = Number(filters.year);
+  }
+
+  if (filters.status) {
+    where.status = filters.status;
+  }
+
+  if (filters.search?.trim()) {
+    const keyword = filters.search.trim();
+    const monthMatch = keyword.match(/(\d+)\s*월\s*(\d+)\s*주차/);
+
+    if (monthMatch) {
+      where.month = Number(monthMatch[1]);
+      where.weekOfMonth = Number(monthMatch[2]);
+    } else if (/^\d{4}$/.test(keyword)) {
+      where.year = Number(keyword);
+    } else if (/^\d{1,2}$/.test(keyword)) {
+      where.month = Number(keyword);
+    }
+  }
+
+  if (filters.startDate || filters.endDate) {
+    where.thursdayDate = {};
+
+    if (filters.startDate) {
+      where.thursdayDate.gte = new Date(`${filters.startDate}T00:00:00`);
+    }
+
+    if (filters.endDate) {
+      where.thursdayDate.lte = new Date(`${filters.endDate}T23:59:59`);
+    }
+  }
+
+  return where;
+}
+
+export async function listIssueProgressRounds(filters = {}) {
+  await ensureAllVersionRounds();
+
+  const page = Math.max(Number(filters.page) || 1, 1);
+  const pageSize = Math.max(Number(filters.pageSize) || 10, 1);
+  const where = buildRoundWhere(filters);
+
+  const [records, total, years] = await Promise.all([
+    prisma.issueProgressRound.findMany({
+      where,
+      include: ROUND_INCLUDE,
+      orderBy: [
+        { year: "desc" },
+        { month: "desc" },
+        { weekOfMonth: "desc" },
+        { id: "desc" },
+      ],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.issueProgressRound.count({ where }),
+    prisma.issueProgressRound.findMany({
+      select: { year: true },
+      distinct: ["year"],
+      orderBy: { year: "desc" },
+    }),
+  ]);
+
+  return {
+    items: records.map(toIssueProgressRoundResponse),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(Math.ceil(total / pageSize), 1),
+    years: years.map((entry) => entry.year),
+  };
 }
 
 export async function getIssueOverviewStats() {
