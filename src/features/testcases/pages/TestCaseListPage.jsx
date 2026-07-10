@@ -171,7 +171,7 @@ function TestCaseListPage({
         checkItem: "",
         checkMethod: "",
         checkResult: "",
-        isWorking: "O",
+        isWorking: null,
         note: "",
       });
 

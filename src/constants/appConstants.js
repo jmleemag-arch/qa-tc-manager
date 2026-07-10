@@ -34,7 +34,6 @@ export const SIDEBAR_GROUPS = [
     label: "설정",
     items: [
       { id: MENU_IDS.SETTINGS, label: "설정" },
-      { id: MENU_IDS.NOTIFICATIONS, label: "알림" },
     ],
   },
 ];

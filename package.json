@@ -13,6 +13,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:demo": "node scripts/ensure-demo-data.mjs",
     "db:studio": "prisma studio"
   },
   "prisma": {

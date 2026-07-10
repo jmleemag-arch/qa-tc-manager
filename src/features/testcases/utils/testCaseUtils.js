@@ -54,7 +54,9 @@ export function filterTestCases(
       tc.menu === selectedMenu;
 
     const isWorkingMatched =
-      workingFilter === IS_WORKING_FILTER_ALL || tc.isWorking === workingFilter;
+      workingFilter === IS_WORKING_FILTER_ALL ||
+      (workingFilter === "" && !tc.isWorking) ||
+      tc.isWorking === workingFilter;
 
     if (!normalizedSearch) {
       return isVersionMatched && isMenuMatched && isWorkingMatched;
@@ -94,7 +96,7 @@ export function createEmptyTestCase(menu, uid, versionId = null) {
     checkItem: "",
     checkMethod: "",
     checkResult: "",
-    isWorking: "O",
+    isWorking: null,
     note: "",
   };
 }
@@ -111,7 +113,7 @@ export function updateTestCase(testCases, uid, formData) {
       checkItem: formData.checkItem.trim(),
       checkMethod: formData.checkMethod.trim(),
       checkResult: formData.checkResult.trim(),
-      isWorking: formData.isWorking,
+      isWorking: formData.isWorking || null,
       note: formData.note.trim(),
     };
   });
@@ -160,7 +162,7 @@ export function getEditableFormData(testCase) {
     checkItem: testCase.checkItem,
     checkMethod: testCase.checkMethod,
     checkResult: testCase.checkResult,
-    isWorking: testCase.isWorking,
+    isWorking: testCase.isWorking ?? "",
     note: testCase.note,
   };
 }

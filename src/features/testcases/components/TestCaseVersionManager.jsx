@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   FIXED_VERSION_MENUS,
   INSERTABLE_MENU_POOL,
+  SIDEBAR_MENUS,
 } from "../constants/testCaseConstants";
 import { isFixedVersionMenu } from "../utils/testCaseUtils";
 
@@ -35,6 +36,33 @@ function TestCaseVersionManager({
     () => versions.find((version) => version.id === selectedVersionId),
     [versions, selectedVersionId]
   );
+
+  const allTestCaseMenus = useMemo(
+    () => [
+      ...new Set([
+        ...SIDEBAR_MENUS,
+        ...customMenuPool.map((menu) => menu.label),
+      ]),
+    ],
+    [customMenuPool]
+  );
+
+  const menuInsertOptions = useMemo(() => {
+    if (!selectedVersion) {
+      return [];
+    }
+
+    const currentMenus = new Set(selectedVersion.menus ?? []);
+    const poolMenus = [
+      ...INSERTABLE_MENU_POOL,
+      ...customMenuPool.map((menu) => menu.label),
+    ];
+
+    return [...new Set(poolMenus)].map((menu) => ({
+      name: menu,
+      isInserted: currentMenus.has(menu),
+    }));
+  }, [customMenuPool, selectedVersion]);
 
   const insertableMenus = useMemo(() => {
     if (!selectedVersion) {
@@ -342,18 +370,20 @@ function TestCaseVersionManager({
 
                 <div className="tc-version-menu-insert">
                   <h3>메뉴 삽입</h3>
-                  {insertableMenus.length > 0 ? (
+                  {menuInsertOptions.length > 0 ? (
                     <div className="tc-version-menu-insert-list">
-                      {insertableMenus.map((menu) => (
+                      {menuInsertOptions.map((menuOption) => (
                         <button
-                          key={menu}
+                          key={menuOption.name}
                           type="button"
                           className="tc-version-menu-insert-btn"
+                          disabled={menuOption.isInserted}
                           onClick={() =>
-                            onInsertMenu(selectedVersion.id, menu)
+                            onInsertMenu(selectedVersion.id, menuOption.name)
                           }
                         >
-                          + {menu}
+                          {menuOption.isInserted ? "✓" : "+"}{" "}
+                          {menuOption.name}
                         </button>
                       ))}
                     </div>

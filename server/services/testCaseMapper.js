@@ -9,7 +9,7 @@ export function toTestCaseResponse(record) {
     checkItem: record.checkItem,
     checkMethod: record.checkMethod ?? "",
     checkResult: record.expectedResult ?? "",
-    isWorking: record.actualResult ?? "O",
+    isWorking: record.actualResult,
     note: record.note ?? "",
     sortOrder: record.sortOrder,
   };
@@ -23,7 +23,7 @@ export function toTestCaseCreateData(payload, versionId) {
     checkItem: String(payload.checkItem ?? "").trim(),
     checkMethod: String(payload.checkMethod ?? "").trim() || null,
     expectedResult: String(payload.checkResult ?? payload.expectedResult ?? "").trim() || null,
-    actualResult: String(payload.isWorking ?? payload.actualResult ?? "O").trim() || "O",
+    actualResult: String(payload.isWorking ?? payload.actualResult ?? "").trim() || null,
     note: String(payload.note ?? "").trim() || null,
   };
 }
@@ -54,7 +54,7 @@ export function toTestCaseUpdateData(payload) {
 
   if (payload.isWorking !== undefined || payload.actualResult !== undefined) {
     data.actualResult =
-      String(payload.isWorking ?? payload.actualResult ?? "").trim() || "O";
+      String(payload.isWorking ?? payload.actualResult ?? "").trim() || null;
   }
 
   if (payload.note !== undefined) {

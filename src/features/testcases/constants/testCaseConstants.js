@@ -60,14 +60,19 @@ export const MENU_SELECT_ALERT = "메뉴를 먼저 선택해주세요.";
 
 export const DELETE_SELECT_ALERT = "삭제할 TC를 선택해주세요.";
 
-export const IS_WORKING_OPTIONS = ["O", "X"];
+export const IS_WORKING_EMPTY_VALUE = "";
+
+export const IS_WORKING_OPTIONS = ["O", "X", "N/A", "N/T"];
 
 export const IS_WORKING_FILTER_ALL = "ALL";
 
 export const IS_WORKING_FILTER_OPTIONS = [
   { value: IS_WORKING_FILTER_ALL, label: "전체" },
+  { value: IS_WORKING_EMPTY_VALUE, label: "미지정" },
   { value: "O", label: "O" },
   { value: "X", label: "X" },
+  { value: "N/A", label: "N/A" },
+  { value: "N/T", label: "N/T" },
 ];
 
 export const EDITABLE_TEST_CASE_FIELDS = [

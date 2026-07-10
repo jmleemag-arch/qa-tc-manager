@@ -108,9 +108,12 @@ function TestCaseEditModal({ isOpen, testCase, onClose, onSave, onDelete }) {
             <label className="tc-modal-field">
               <span>작동 여부</span>
               <select
-                value={formData.isWorking}
-                onChange={(e) => handleChange("isWorking", e.target.value)}
+                value={formData.isWorking ?? ""}
+                onChange={(e) =>
+                  handleChange("isWorking", e.target.value || null)
+                }
               >
+                <option value="">미지정</option>
                 {IS_WORKING_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}

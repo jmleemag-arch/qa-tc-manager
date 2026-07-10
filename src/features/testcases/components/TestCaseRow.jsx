@@ -60,7 +60,7 @@ function TestCaseRow({
       <td className="tc-cell-wrap">{testCase.checkResult || "-"}</td>
       <td>
         <Badge type="isWorking" value={testCase.isWorking}>
-          {testCase.isWorking}
+          {testCase.isWorking ?? "-"}
         </Badge>
       </td>
       <td className="tc-cell-wrap tc-note">{testCase.note || "-"}</td>
