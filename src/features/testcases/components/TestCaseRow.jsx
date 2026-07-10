@@ -52,7 +52,7 @@ function TestCaseRow({
       </td>
       <td className="tc-id">{testCase.displayId}</td>
       <td>{testCase.menu}</td>
-      <td>{testCase.subMenu || "-"}</td>
+      <td className="tc-cell-wrap tc-submenu-cell">{testCase.subMenu || "-"}</td>
       <td className="tc-cell-wrap tc-check-item">
         {testCase.checkItem || "-"}
       </td>

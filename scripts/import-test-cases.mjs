@@ -305,43 +305,6 @@ async function resolveVersion(versionName) {
   return version;
 }
 
-async function syncVersionMenus(versionId, menus) {
-  const uniqueMenus = [...new Set(menus.filter(Boolean))];
-  const existingSubmenus = await prisma.submenu.findMany({
-    where: { versionId },
-    select: { name: true, sortOrder: true },
-  });
-  const existingNames = new Set(existingSubmenus.map((item) => item.name));
-  const defaultMenus = [...FIXED_VERSION_MENUS];
-  const orderedMenus = [
-    ...defaultMenus,
-    ...uniqueMenus.filter((menu) => !defaultMenus.includes(menu)),
-  ];
-  let sortOrder =
-    existingSubmenus.reduce(
-      (maxValue, item) => Math.max(maxValue, item.sortOrder),
-      -1
-    ) + 1;
-
-  for (const menuName of orderedMenus) {
-    if (existingNames.has(menuName)) {
-      continue;
-    }
-
-    await prisma.submenu.create({
-      data: {
-        versionId,
-        name: menuName,
-        isDefault: defaultMenus.includes(menuName),
-        sortOrder,
-        isActive: true,
-      },
-    });
-
-    sortOrder += 1;
-  }
-}
-
 function assignCaseCodes(rows) {
   const usedCodes = new Set();
 
@@ -394,11 +357,6 @@ async function importTestCases(filePath, versionNameArg) {
       })),
     });
   }
-
-  await syncVersionMenus(
-    version.id,
-    parsedRows.map((row) => row.menu)
-  );
 
   const menuCounts = parsedRows.reduce((counts, row) => {
     counts[row.menu] = (counts[row.menu] ?? 0) + 1;
